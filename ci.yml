@@ -1,0 +1,134 @@
+# Lightweight CI for the hardened-workstation repo.
+#
+# Scope: static checks only. Hardware-dependent tests are LOCAL and are
+# explicitly NOT run here; CI must never pretend to run them.
+# See docs/TESTING.md for the LOCAL test matrices.
+
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: shellcheck on scripts and tests
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq shellcheck
+          # scripts/ and tests/ are all bash; fail on any shellcheck error.
+          shellcheck -S error scripts/*.sh tests/*.sh
+
+      - name: duplicate Kconfig entry check (config/*.config)
+        run: |
+          # If no config/*.config files exist yet, this passes vacuously.
+          fail=0
+          for f in config/*.config; do
+            [ -e "$f" ] || continue
+            echo "checking $f"
+            dupes=$(grep -E '^(CONFIG_[A-Za-z0-9_]+)=' "$f" | cut -d= -f1 | sort | uniq -d || true)
+            if [ -n "$dupes" ]; then
+              echo "FAIL: duplicate Kconfig entries in $f:" >&2
+              echo "$dupes" >&2
+              fail=1
+            fi
+          done
+          [ "$fail" -eq 0 ]
+
+      - name: secret-pattern scan
+        run: |
+          # Fail if the repo contains actual secret MATERIAL: PEM private key
+          # blocks, or passphrase/password variables assigned a quoted value.
+          # Prose mentions ("recovery passphrase: written on paper") are not
+          # secrets and are not flagged. Recovery secrets live offline, never
+          # in this repo.
+          fail=0
+          hits=$(grep -rE --exclude-dir=.git -e '-----BEGIN (RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----' . || true)
+          if [ -n "$hits" ]; then
+            echo "FAIL: private key header found:" >&2
+            echo "$hits" >&2
+            fail=1
+          fi
+          hits=$(grep -rEi --exclude-dir=.git -e "(recovery[_-]?passphrase|password|passwd)[[:space:]]*[:=][[:space:]]*[\"'][^\"']+[\"']" . || true)
+          if [ -n "$hits" ]; then
+            echo "FAIL: quoted passphrase/password assignment found:" >&2
+            echo "$hits" >&2
+            fail=1
+          fi
+          [ "$fail" -eq 0 ]
+
+      - name: dangerous-construct scan
+        run: |
+          # Fail on dangerous constructs in EXECUTABLE content (scripts/,
+          # tests/). Full-line shell comments are stripped first.
+          # Documentation in docs/ legitimately names these commands in
+          # "DO NOT RUN" prose and recovery procedures, so docs/ is out of
+          # scope for this scan.
+          fail=0
+          check() {
+            # $1 = ERE pattern, $2 = description
+            while IFS= read -r f; do
+              [ -z "$f" ] && continue
+              hits=$(grep -vE '^[[:space:]]*#' "$f" | grep -nE "$1" || true)
+              if [ -n "$hits" ]; then
+                echo "FAIL: $2 in $f:" >&2
+                echo "$hits" >&2
+                fail=1
+              fi
+            done < <(find scripts tests -name '*.sh' 2>/dev/null)
+          }
+          check 'curl[^|]*\|[[:space:]]*(sudo[[:space:]]+)?(ba)?sh' 'curl-pipe-to-shell'
+          check '(^|[^a-z_])mkfs(\.[a-z0-9]+)?[[:space:]]' 'mkfs invocation'
+          check 'dd[[:space:]].*of=' 'dd with of='
+          check 'nvme[[:space:]]+(sanitize|format)' 'nvme sanitize/format'
+          check 'tpm2_clear' 'tpm2_clear'
+          check 'efibootmgr[^#]*-B' 'efibootmgr -B (boot entry delete)'
+          check 'mokutil[^#]*--delete' 'mokutil --delete'
+          [ "$fail" -eq 0 ]
+
+      - name: markdown relative-link check
+        run: |
+          # Every relative link target in docs/**/*.md and vm-profiles/**/*.md
+          # must resolve to a file in the repo. Anchors (#...) and absolute
+          # URLs are ignored.
+          fail=0
+          check_file() {
+            md="$1"
+            dir=$(dirname "$md")
+            # Extract [text](target) targets.
+            grep -oE '\]\([^)]+\)' "$md" | sed -E 's/^\]\(//; s/\)$//' | while IFS= read -r target; do
+              [ -z "$target" ] && continue
+              case "$target" in
+                http://*|https://*|mailto:*|"#") continue ;;
+                \#*) continue ;;
+              esac
+              # Strip anchor.
+              target="${target%%#*}"
+              [ -z "$target" ] && continue
+              if [ ! -e "$dir/$target" ]; then
+                echo "FAIL: $md: relative link target missing: $target" >&2
+                # Communicate failure via a marker file since this runs in a subshell.
+                touch /tmp/linkcheck-fail
+              fi
+            done
+          }
+          rm -f /tmp/linkcheck-fail
+          for md in $(find docs vm-profiles -name '*.md' 2>/dev/null); do
+            check_file "$md"
+          done
+          [ ! -f /tmp/linkcheck-fail ]
+
+      - name: runnable local checks (tests/)
+        run: |
+          chmod +x tests/*.sh
+          ./tests/test-sysctl-values.sh sysctl/99-workstation-hardening.conf
+          ./tests/test-nft-syntax.sh
+
+      - name: hardware tests are LOCAL-only (reminder)
+        run: |
+          echo "Hardware test matrices (docs/TESTING.md: Boot, Storage, PAM, KVM, Power, Firmware)"
+          echo "are LOCAL-only and are intentionally not executed in CI."
