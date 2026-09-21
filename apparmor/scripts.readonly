@@ -1,0 +1,40 @@
+# apparmor profile for the project's own audit scripts.
+#
+# Purpose: show how project utilities get confined. The audit scripts are
+# read-only by design; the profile enforces that at the MAC layer so a
+# compromised or buggy script cannot write outside its intent.
+#
+# Which scripts: scripts/audit-pam-u2f.sh and scripts/security-status.sh.
+# Both are bash scripts, so the profile attaches to the interpreter
+# invocation of the script path (ix/inherit rules keep this simple).
+#
+# Status: EXAMPLE. Test with aa-complain first, then enforce.
+# Replace <REPO> with the real repository path at deployment time.
+
+#include <tunables/global>
+
+/bin/bash flags=(complain) {
+  #include <abstractions/base>
+  #include <abstractions/bash>
+
+  # The scripts themselves: read and execute only.
+  /<REPO>/scripts/audit-pam-u2f.sh rix,
+  /<REPO>/scripts/security-status.sh rix,
+
+  # Read-only system state they inspect.
+  /etc/pam.d/* r,
+  /etc/u2f_mappings r,
+  /usr/lib/x86_64-linux-gnu/security/pam_u2f.so r,
+  /proc/sys/kernel/** r,
+  /sys/** r,
+
+  # Tools they exec.
+  /usr/bin/stat rix,
+  /usr/bin/grep rix,
+  /usr/bin/wc rix,
+  /bin/systemctl rix,
+
+  # Explicitly deny writes: these scripts must never modify the system.
+  # If a denial here fires during testing, the script has a bug.
+  deny /** w,
+}

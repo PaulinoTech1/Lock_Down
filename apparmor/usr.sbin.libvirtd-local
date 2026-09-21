@@ -1,0 +1,42 @@
+# apparmor/usr.sbin.libvirtd-local: example hardening additions for libvirtd.
+#
+# Purpose: show the pattern for tightening the libvirtd profile without
+# replacing Ubuntu's shipped profile. This file is loaded as a LOCAL
+# include (see /etc/apparmor.d/local/usr.sbin.libvirtd on Ubuntu), so the
+# distro profile keeps working across upgrades.
+#
+# Status: EXAMPLE. Start in complain mode, profile real usage, then enforce.
+# Do NOT load this blindly: libvirtd needs broad access by design, and a
+# wrong deny here breaks every VM on the host.
+#
+# Test:  aa-complain usr.sbin.libvirtd  (then exercise VM lifecycle)
+#        journalctl -t audit | grep apparmor
+#        aa-enforce usr.sbin.libvirtd   (only after denials are understood)
+
+#include <tunables/global>
+
+/usr/sbin/libvirtd flags=(complain) {
+  #include <abstractions/base>
+
+  # libvirtd must read its own config and the system libvirt state.
+  /etc/libvirt/** r,
+  /var/lib/libvirt/** r,
+  /var/log/libvirt/** rw,
+
+  # Per-guest sVirt profiles live here; libvirtd manages them.
+  /etc/apparmor.d/libvirt/** rw,
+
+  # Deny libvirtd direct read of user home data it has no business with.
+  # Tighten or relax based on observed denials: VM disk images that live
+  # under a home directory WILL need an explicit allow here instead.
+  deny owner @{HOME}/** r,
+
+  # No raw disk access outside explicitly configured pools. Add named
+  # device paths only for passthrough disks that are actually configured.
+  # Example (uncomment and fill when a passthrough disk exists):
+  # /dev/disk/by-id/<DISK_ID> rw,
+
+  # Capability use: audit what libvirtd requests. Deny first in complain
+  # mode, then allow only what real operation needs.
+  # deny capability sys_rawio,
+}

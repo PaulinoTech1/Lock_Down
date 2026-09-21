@@ -1,0 +1,94 @@
+#!/usr/sbin/nft -f
+# workstation.nft: baseline nftables ruleset for the hardened workstation.
+#
+# Purpose: conservative host firewall. Drop unsolicited inbound, allow
+# return traffic, keep DHCP/DNS working, isolate libvirt VM traffic.
+#
+# LOAD PROCEDURE (read before applying):
+#   1. nft -c -f /path/to/workstation.nft   # syntax check ONLY; fixes nothing
+#   2. Save current ruleset: nft list ruleset > /root/nft-backup-$(date +%F).nft
+#   3. Apply from a local console or a session that does not depend on the
+#      network path you are filtering. Have a revert ready (the backup file,
+#      or a timed 'nft flush ruleset' in a separate session).
+#   4. Never apply blindly. A typo here can cut management access.
+#
+# Machine-readability note: interface and address placeholders are marked
+# with <ANGLE BRACKETS> and must be filled at deployment time. No values are
+# hardcoded.
+
+flush ruleset
+
+table inet filter {
+
+    # ------------------------------------------------------------------ input
+    chain input {
+        type filter hook input priority 0; policy drop;
+
+        # Established/related return traffic: the core of the policy.
+        # Outbound connections we initiated get their replies back.
+        ct state established,related accept
+
+        # Invalid packets: drop early, before any accept logic.
+        ct state invalid drop
+
+        # Loopback: the machine talking to itself must always work.
+        iifname "lo" accept
+
+        # ---- ICMPv6 necessities (required for IPv6 to function) ----
+        # Neighbor discovery, router advertisements, echo for PMTU.
+        icmpv6 type { nd-neighbor-solicit, nd-neighbor-advert, \
+                      nd-router-solicit, nd-router-advert, \
+                      echo-request, echo-reply, \
+                      packet-too-big, time-exceeded, parameter-problem } accept
+
+        # ---- DHCP ----
+        # DHCPv4 client: replies from the server on UDP 68.
+        # Tie to the real uplink interface at deployment (<UPLINK_IF>).
+        # udp dport 68 iifname "<UPLINK_IF>" accept
+        # DHCPv6 client: server port 547 to client port 546.
+        udp sport 547 udp dport 546 iifname "<UPLINK_IF>" accept
+
+        # ---- libvirt NAT bridge: guests may reach ONLY the bridge's
+        #      DHCP/DNS service, nothing else on the host. ----
+        # Fill <VIRBR0_IPV4> with the bridge address observed at deployment
+        # (default libvirt NAT uses 192.168.122.1; verify, do not assume).
+        # iifname "virbr0" ip daddr <VIRBR0_IPV4> udp dport { 53, 67 } accept
+        # iifname "virbr0" ip daddr <VIRBR0_IPV4> tcp dport 53 accept
+
+        # ---- explicitly enabled services: one commented line each ----
+        # Example pattern (uncomment and fill when a service is approved):
+        # tcp dport 22 ip saddr <ADMIN_SUBNET> ct state new accept # SSH, admin net only
+
+        # Rate-limited logging of what we drop, so a misbehaving ruleset
+        # is diagnosable without flooding the log.
+        limit rate over 5/minute burst 10 packets log prefix "nft-drop-input: "
+    }
+
+    # ---------------------------------------------------------------- forward
+    chain forward {
+        type filter hook forward priority 0; policy drop;
+
+        # Dedicated VM zone: keep VM forwarding logic out of the host chains.
+        jump vm_forward
+    }
+
+    # VM zone chain: libvirt NAT traffic.
+    # NOTE: libvirt also installs its own forwarding/masquerade rules when
+    # its default network starts. Verify at deployment which backend libvirt
+    # uses (see docs/FIREWALL.md). If libvirt manages its own rules, this
+    # chain documents the host-side intent; do not fight libvirt's rules.
+    chain vm_forward {
+        # Guests to the internet (masqueraded by libvirt's own rules):
+        # iifname "virbr0" oifname "<UPLINK_IF>" ct state new accept
+        # Return traffic:
+        ct state established,related accept
+        # Everything else between zones: dropped by the forward policy.
+    }
+
+    # ----------------------------------------------------------------- output
+    chain output {
+        type filter hook output priority 0; policy accept;
+        # Workstation posture: egress is not restricted by default.
+        # A restrictive egress policy is a separate, OPTIONAL project.
+    }
+}
