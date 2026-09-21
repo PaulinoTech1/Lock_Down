@@ -1,0 +1,84 @@
+# Never commit secrets or key material. This list is semantic: if it
+# authenticates, decrypts, or signs, it does not go in git.
+
+# Secure Boot / MOK signing keys (private halves live on encrypted offline media)
+*.pem
+*.key
+*.p12
+*.pfx
+MOK.priv
+MOK.der
+shim*.priv
+*.mok
+
+# LUKS keys, key files, recovery passphrases, header backups
+*.luks-key
+luks-*.key
+*recovery*.txt
+*recovery*.pass
+luks-header*.bin
+*.luks-header
+
+# TPM secrets and sealed blobs
+tpm*.secret
+*sealed*.blob
+*.tpm
+
+# SSH private keys (public halves are fine to commit)
+id_rsa
+id_ecdsa
+id_ecdsa_sk
+id_ed25519
+id_ed25519_sk
+*_rsa
+*_ed25519
+
+# Passwords, firmware passwords, disk passwords, PINs
+*password*.txt
+*password*.json
+*password*.yaml
+*password*.yml
+*.htpasswd
+supervisor*.txt
+nvme-pass*.txt
+
+# YubiKey / FIDO2 / PIV material and auth mapping files with secrets
+*pam_u2f*secret*
+ykman-*.txt
+piv-*.key
+
+# GPG private keys
+*.gpg-key
+secring.gpg
+*.asc-priv
+
+# Age / Minisign / SSH-style secret keys
+*.age-key
+*.minisig-secret
+
+# Kernel build artifacts
+vmlinux
+*.o
+*.ko
+.config.old
+.config.bak
+Module.symvers
+modules.order
+System.map
+*.cmd
+
+# Build directories and logs
+build/
+*.log
+*.tmp
+
+# Backup / editor / OS artifacts
+*~
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Local-only notes that may contain hostnames, IPs, or credentials
+local-notes/
+private/
