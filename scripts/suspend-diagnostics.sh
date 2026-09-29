@@ -10,15 +10,37 @@
 set -euo pipefail
 
 DO_SUSPEND=0
+CHECK_ONLY=0
 if [[ "${1:-}" == "--do-suspend" ]]; then
     DO_SUSPEND=1
+elif [[ "${1:-}" == "--check" ]]; then
+    CHECK_ONLY=1
 elif [[ -n "${1:-}" ]]; then
-    echo "usage: $0 [--do-suspend]" >&2
+    echo "usage: $0 [--check|--do-suspend]" >&2
     exit 2
 fi
 
-OUT_DIR="${SUSPEND_DIAG_DIR:-/tmp/suspend-diag}"
-mkdir -p "${OUT_DIR}"
+[[ $# -le 1 ]] || exit 2
+base="${SUSPEND_EVIDENCE_ROOT:-}"
+[[ -z "$base" || "$DO_SUSPEND" == 0 ]] || { echo 'FAIL offline evidence cannot authorize suspend'; exit 1; }
+umask 077
+# shellcheck source=scripts/safe-directory.sh
+source "$(dirname "${BASH_SOURCE[0]}")/safe-directory.sh"
+if [[ -n "${SUSPEND_DIAG_DIR:-}" ]]; then
+    safe_directory "$SUSPEND_DIAG_DIR" || { echo 'FAIL unsafe diagnostic parent'; exit 1; }
+    parent="$SUSPEND_DIAG_DIR"
+else
+    parent=/tmp
+fi
+check_s2idle() {
+    local modes
+    modes="$(cat "$base/sys/power/mem_sleep" 2>/dev/null)" || { echo 'UNKNOWN mem_sleep unreadable'; return 3; }
+    [[ "$(grep -o '\[[^]]*\]' <<< "$modes")" == '[s2idle]' ]] || { echo 'FAIL default sleep mode is not s2idle'; return 1; }
+    echo 'PASS s2idle is the selected mode (not a suspend test)'
+}
+if [[ "$CHECK_ONLY" == 1 ]]; then check_s2idle; exit $?; fi
+OUT_DIR="$(mktemp -d "$parent/lockdown-suspend.XXXXXXXX")"
+safe_directory "$OUT_DIR" || { echo 'FAIL unsafe diagnostic directory'; exit 1; }
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 
 collect_state() {
@@ -27,11 +49,11 @@ collect_state() {
     {
         echo "=== ${tag} @ $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
         echo "--- /sys/power/mem_sleep ---"
-        cat /sys/power/mem_sleep 2>/dev/null || echo "UNREADABLE"
+        cat "$base/sys/power/mem_sleep" 2>/dev/null || echo "UNREADABLE"
         echo "--- uptime ---"
-        cat /proc/uptime 2>/dev/null || echo "UNREADABLE"
+        cat "$base/proc/uptime" 2>/dev/null || echo "UNREADABLE"
         echo "--- USB devices (bus/port/vid:pid; no serials) ---"
-        for dev in /sys/bus/usb/devices/*; do
+        for dev in "$base"/sys/bus/usb/devices/*; do
             [[ -f "${dev}/idVendor" ]] || continue
             vid="$(cat "${dev}/idVendor" 2>/dev/null || echo '?')"
             pid="$(cat "${dev}/idProduct" 2>/dev/null || echo '?')"
@@ -40,7 +62,7 @@ collect_state() {
             echo "bus ${bus} port ${port}: ${vid}:${pid} ($(basename "${dev}"))"
         done
         echo "--- network interfaces (names/carrier only; no MACs, IPs, SSIDs) ---"
-        for iface_path in /sys/class/net/*; do
+        for iface_path in "$base"/sys/class/net/*; do
             [[ -e "${iface_path}" ]] || continue
             iface="$(basename "${iface_path}")"
             [[ "${iface}" == "lo" ]] && continue
@@ -49,17 +71,16 @@ collect_state() {
             echo "${iface}: operstate=${oper} carrier=${carrier}"
         done
         echo "--- NVMe namespaces ---"
-        ls /dev/nvme*n1 2>/dev/null || echo "none found"
+        ls "$base"/dev/nvme*n1 2>/dev/null || echo "none found"
         echo "--- audio cards ---"
-        cat /proc/asound/cards 2>/dev/null || echo "UNREADABLE"
+        cat "$base/proc/asound/cards" 2>/dev/null || echo "UNREADABLE"
         echo "--- DRM connectors ---"
-        for conn in /sys/class/drm/card*-*; do
+        for conn in "$base"/sys/class/drm/card*-*; do
             [[ -e "${conn}/status" ]] || continue
             # Skip non-connector entries (e.g., card0-DP-1 is a connector; fine).
             echo "$(basename "${conn}"): $(cat "${conn}/status" 2>/dev/null || echo '?')"
         done
-        echo "--- dmesg tail (timestamps; best effort) ---"
-        dmesg 2>/dev/null | tail -30 || echo "dmesg unreadable (dmesg_restrict? run with sudo)"
+        echo '--- raw dmesg omitted: may contain identifiers or secrets ---'
     } > "${f}"
     echo "state written to ${f}"
 }
@@ -74,7 +95,8 @@ if [[ "${DO_SUSPEND}" -eq 0 ]]; then
 fi
 
 # --do-suspend path: mandatory typed confirmation.
-echo "WARNING: this will suspend the machine to s2idle NOW."
+check_s2idle
+echo "WARNING: confirmation below authorizes an s2idle suspend."
 echo "Unsaved work in other sessions will be suspended, not lost, but"
 echo "a failed resume is possible on untested firmware paths."
 echo "Type SUSPEND to continue:"
@@ -84,16 +106,8 @@ if [[ "${answer}" != "SUSPEND" ]]; then
     exit 3
 fi
 
-mem_sleep_avail="$(cat /sys/power/mem_sleep 2>/dev/null || echo '')"
-echo "firmware-advertised mem_sleep: ${mem_sleep_avail}"
-# Use the firmware default (bracketed entry); never force a mode the
-# firmware does not advertise.
-target="$(echo "${mem_sleep_avail}" | grep -o '\[[^]]*\]' | tr -d '[]' || true)"
-if [[ -z "${target}" ]]; then
-    echo "could not determine default mem_sleep mode; aborting." >&2
-    exit 1
-fi
-echo "using suspend mode: ${target}"
+check_s2idle
+target=s2idle
 
 collect_state "pre-suspend"
 echo "suspending in 5 seconds (Ctrl+C to abort)..."
