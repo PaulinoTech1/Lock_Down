@@ -1,0 +1,7 @@
+#!/bin/busybox sh
+
+guest_release="$(/bin/busybox uname -r)"
+/bin/busybox echo "LOCKDOWN_KVM_SMOKE_OK release=${guest_release}" > /dev/console
+/bin/busybox poweroff -f
+/bin/busybox echo 'LOCKDOWN_KVM_SMOKE_POWER_OFF_FAILED' > /dev/console
+/bin/busybox sleep 60

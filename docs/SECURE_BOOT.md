@@ -1,6 +1,11 @@
 # Secure Boot Bringup
 
-Status of this document: PLAN. Secure Boot is currently DISABLED on this machine (VERIFIED 2026-09-21, via the laptop inventory). The platform is in Setup Mode: no Platform Key (PK) is enrolled. Nothing in this document changes firmware state. Every enrollment or enablement step is a manual admin action.
+Status of this document: historical bringup plan. On 2026-09-23 the running
+Ubuntu 7.0.0-31-generic kernel reported Secure Boot enabled and lockdown in
+integrity mode. The earlier 2026-09-21 Setup Mode/disabled state is superseded.
+The custom kernel's signature and boot behavior remain unverified; inspect
+the current MOK enrollment and signed image before following any phase below.
+Nothing in this document changes firmware state. Every enrollment or enablement step is a manual admin action.
 
 Enrollment model: shim + MOK (Machine Owner Key). RECOMMENDED. Rationale: shim carries the Ubuntu-signed chain the distro kernel already relies on, MOK lets us enroll a project key without replacing the platform PK, and the machine can fall back to the Ubuntu-signed kernel at any point. Custom PK/KEK enrollment is OPTIONAL and NOT recommended for this machine: it raises the cost of a lost key to a firmware-level recovery problem with no matching upside on a single-user workstation.
 

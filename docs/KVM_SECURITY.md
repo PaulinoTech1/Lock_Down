@@ -41,8 +41,8 @@ protect against live in `VM_THREAT_MODELS.md`.
   with `scripts/check-iommu.sh`; do not assume DMA isolation merely because
   the IOMMU exists.
 - Why it matters here: Thunderbolt 4 ports and USB devices are DMA-capable.
-  With Thunderbolt disabled in UEFI (project baseline), the remaining
-  DMA-capable surface is USB. VT-d is also the prerequisite for any future
+  Thunderbolt firmware authorization remains unverified, so USB is not the
+  only possible DMA-capable surface. VT-d is also the prerequisite for future
   PCI passthrough decision.
 - Cost: small IOTLB overhead on DMA-heavy workloads; negligible for normal
   VM use.
@@ -79,6 +79,14 @@ options kvm_intel enable_apicv=1
   and seccomp filtering consistently. Cost: slightly less flexibility than
   hand-rolled QEMU. Limitation: libvirt defaults are distribution
   defaults; they must be tightened per profile (see `vm-profiles/`).
+- Narrow test-only exception: `bash scripts/kvm-smoke.sh` runs the currently
+  booted kernel as a disposable guest twice with KVM acceleration. Its fixed
+  static-BusyBox initramfs has no disk, network, display, or user-selected
+  guest payload; QEMU runs as the invoking non-root user with its sandbox
+  enabled. The script records input hashes and requires a guest marker and
+  clean power-off on both runs. This checks basic KVM guest execution only:
+  it does not validate libvirt/sVirt, guest-agent or network workflows,
+  untrusted-guest isolation, or a production VM. Those still use libvirt.
 - QEMU must run as an unprivileged user (`qemu:///system` with the
   `libvirt-qemu` user), never as root. Purpose: a VM escape lands in an
   unprivileged account, not uid 0. Cost: none. Limitation: an escape still

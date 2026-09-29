@@ -98,7 +98,8 @@ kernel problem. That distinction drives the recovery runbooks.
 The design assumes the following, because experience says they are true:
 
 - Firmware has bugs. Mitigation: minimal trust in firmware services after boot,
-  IOMMU on, Thunderbolt driver excluded, firmware updates manual and versioned.
+  IOMMU on, USB4 tunneling excluded from the custom profile while direct
+  USB-C DisplayPort and HDMI remain supported; firmware updates manual and versioned.
 - Kernels have bugs. Mitigation: smaller config, Lockdown, module-sig
   enforcement, LSMs, user namespaces constrained by policy, unprivileged eBPF
   restricted.

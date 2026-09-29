@@ -1,47 +1,66 @@
-# Thunderbolt posture: disabled
+# Thunderbolt, USB-C, and external monitor policy
 
-Purpose: eliminate pre-boot DMA exposure from the two Thunderbolt 4 / USB4 ports on a machine that uses no Thunderbolt peripherals.
+Updated 2026-09-25 for the ThinkPad T14 Gen 3 Intel (21AJ).
 
-Status: RECOMMENDED (disabled posture). Confidence: High on the exposure class; Medium on the exact firmware setting names until verified in this unit's UEFI.
+## Observed state
 
-## Why disabled
+- The running Ubuntu 7.0.0-31-generic kernel has the `thunderbolt` driver
+  bound to both Thunderbolt 4 NHI functions, PCI 00:0d.2 and 00:0d.3.
+- On running `6.18.53-lockdown-t14g3-audit3`, both NHI functions still appear
+  in `lspci -nnk`, but neither has a kernel driver bound. `boltctl list` and
+  `boltctl domains` return no entries. The xHCI USB function at 00:0d.0 remains
+  bound to `xhci_hcd` for ordinary USB use. PCI function enumeration by itself
+  does not establish that a PCIe tunnel is active or authorized.
+- UCSI ACPI exposes two Type-C ports. i915 exposes HDMI-A-1, DP-1 through
+  DP-4, and the internal eDP connector.
+- No external monitor was connected during the original check. Firmware exposes
+  a `ThunderboltAccess` setting through ThinkLMI, but its `current_value` is
+  root-readable only and was not obtained in this audit. A separate PCIe
+  tunneling setting was not exposed in the unprivileged firmware-setting list.
+  Inspect UEFI setup for one; the previous claim that Thunderbolt was disabled
+  in firmware remains unverified.
 
-- No Thunderbolt dock, eGPU, or other Thunderbolt peripheral is used with this workstation. The ports carry only USB traffic (the Wi-Fi adapter is on a plain USB-A path).
-- A Thunderbolt device gets DMA access to system memory unless the IOMMU contains it. Pre-boot (before the kernel's IOMMU policy is active), a malicious device plugged in at boot can read or write memory. Removing the exposure at the firmware level eliminates the class instead of mitigating it.
-- DMA protection status on this unit is UNVERIFIED; the disabled posture does not depend on it.
+## Supported display paths in the custom profile
 
-## What disabled means here
+The owner needs an external monitor and does not need Thunderbolt peripherals.
+The custom Linux 6.18.53 profile keeps i915, Type-C/UCSI ACPI, DisplayPort
+Alternate Mode, and HDMI/DisplayPort audio built in. It excludes `CONFIG_USB4`
+and `CONFIG_TYPEC_TBT_ALTMODE`, the relevant options in this kernel tree.
 
-1. UEFI: set the Thunderbolt pre-boot / OS control setting to its most restrictive option available (on Lenovo firmware this is typically a Thunderbolt enable/disable or a pre-boot authorization level). Verify the exact option name in this unit's UEFI setup and record it in the deployment notes. Target: Thunderbolt devices do not enumerate or get DMA before the OS.
-2. Kernel: the `thunderbolt` driver stays EXCLUDED from the hardened kernel. Two NHI devices may still appear in sysfs/lspci listings; that is enumeration of the PCI functions, not an authorized device. Exclusion of the driver means no Thunderbolt device can be authorized or driven.
-3. VT-d/IOMMU stays REQUIRED regardless. IOMMU is still needed for the xHCI USB ports and general DMA protection. Never present VT-d alone as making Thunderbolt safe; the posture here is belt and suspenders: firmware restriction plus no driver plus IOMMU.
+Direct HDMI and direct USB-C to DisplayPort/HDMI adapters are the intended
+paths. A USB-C monitor using native DisplayPort Alternate Mode is also within
+scope. A Thunderbolt/USB4 dock that requires tunneled DisplayPort, PCIe, or
+USB4 networking is not supported by this profile. A USB-C dock that uses
+ordinary USB and DisplayPort Alternate Mode may work, but needs a real test.
+The connector shape alone cannot tell which dock implementation is used.
 
-## What to verify
+## Security boundary
 
-- `dmesg | grep -i thunderbolt` shows the driver is absent (module not loaded).
-- The NHI PCI functions, if visible, have no driver bound.
-- `dmesg | grep -i "DMAR"` / IOMMU active (see scripts/check-iommu.sh conventions from the inventory work).
-- UEFI setting recorded: exact menu path and chosen value.
+Omitting the USB4 driver prevents the custom kernel from driving tunneled
+devices through those NHI functions. It does not prove that firmware blocked
+pre-boot DMA, and it does not substitute for VT-d/IOMMU and interrupt
+remapping. Keep the firmware authorization setting restrictive if one is
+available, and record its exact value after inspection in UEFI setup.
 
-## If a Thunderbolt dock is ever needed
+## Validation before daily use
 
-Re-enable deliberately, in this order:
-
-1. Decide the authorization policy first (user authorization via boltctl, or pre-boot levels in UEFI). Default to the strictest that still works with the dock.
-2. Verify IOMMU/VT-d is active and DMA protection is reported before the first untrusted device is attached.
-3. Reintroduce the `thunderbolt` driver, test the dock, and update this document with the new posture. The disabled posture documented here is then superseded, explicitly, in writing.
-
-## Limitation
-
-- Firmware settings are only as trustworthy as the firmware; a compromised UEFI could lie about them. This control assumes the firmware is intact (measured boot / Boot Guard context, see the inventory report).
-- USB4 tunneling over the same ports shares some exposure surface; with the driver excluded and the ports restricted in firmware, the practical surface is USB-only.
-- Disabling in firmware does not remove the PCI devices from enumeration; do not mistake "still visible in lspci" for "still active."
+1. Boot the candidate explicitly while retaining the Ubuntu rescue kernel.
+2. Connect the actual monitor through HDMI; verify a stable image, modes,
+   audio if needed, and reconnect after s2idle resume.
+3. Repeat through the actual direct USB-C adapter or USB-C monitor used daily.
+   Check `cat /sys/class/drm/card*-*/status` and the desktop display settings.
+4. Confirm `/sys/class/typec/port*` exists, and confirm the NHI functions
+   have no `thunderbolt` driver bound on the custom kernel.
+5. Read `ThunderboltAccess` with
+   `sudo cat /sys/class/firmware-attributes/thinklmi/attributes/ThunderboltAccess/current_value`;
+   inspect UEFI setup for a separate PCIe-tunneling control and record its
+   exact displayed value without changing it during this audit.
+6. If a required display path only works through a Thunderbolt/USB4 dock,
+   revise the profile deliberately, enable `CONFIG_USB4`, and test the dock
+   under the intended authorization and IOMMU policy.
 
 ## Recovery
 
-- If the firmware setting breaks USB-C display or USB data on those ports (unexpected, but verify), re-enter UEFI setup and restore the previous value. Record the previous value before changing it.
-- The rescue kernel is unaffected by this policy; it is a firmware plus driver decision, not a boot-path decision.
-
-## Cost
-
-Loss of future Thunderbolt peripheral use until deliberately re-enabled. On a machine with no TB peripherals, that cost is zero.
+If the candidate fails to drive the monitor, select the retained Ubuntu
+kernel from GRUB. Recheck the adapter/dock type and the resolved `.config`
+before changing firmware settings or rebuilding.

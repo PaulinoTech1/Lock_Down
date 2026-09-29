@@ -21,7 +21,8 @@ What the standard PCRs measure (general UEFI/Linux semantics; confidence High on
 
 - PCR 0: firmware code (BIOS/UEFI core). Changes on every BIOS update.
 - PCR 1: firmware configuration. Changes when UEFI settings change.
-- PCR 2 / PCR 3: option ROMs. On this machine: Thunderbolt is disabled and there are no option ROMs expected, but the firmware may still extend these.
+- PCR 2 / PCR 3: option ROMs. Thunderbolt firmware authorization is unverified
+  on this machine; the firmware may extend these PCRs for connected devices.
 - PCR 4: boot manager (shim/GRUB) that was executed.
 - PCR 5: GPT partition table. Changes if the partition layout changes.
 - PCR 7: Secure Boot state and the keys in use. Currently reflects Secure Boot DISABLED; it will change value when Secure Boot is enabled in Phase C.

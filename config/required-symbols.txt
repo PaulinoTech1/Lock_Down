@@ -1,0 +1,142 @@
+# required-symbols.txt -- symbols a booting Ubuntu requires under Lock_Down.
+#
+# Why this file exists: three times (framebuffer console, dm-crypt, and the
+# userspace basics that killed build #6), hand-appended CONFIG_=y lines were
+# silently undone by `make olddefconfig`, which resolves dependencies by
+# switching things OFF. Each discovery cost a full compile and a failed boot.
+#
+# Format: one CONFIG_X=y per line. Blank lines and '#' comments ignored.
+#   [required]  scripts/preflight-check.sh exits 1 if any of these is not =y.
+#   [warn]      warnings only; desirable, degrade gracefully if absent.
+#
+# This build is monolithic by design (zero .ko files), so =m is treated as
+# a failure for [required] symbols: a module that can never load helps no one.
+
+[required]
+
+# --- Bus (22 Sept: Kconfig SILENTLY DROPS assigned symbols whose dependencies
+# are unmet. sym_calc_value() clears SYMBOL_WRITE for invisible symbols and
+# conf_write() skips them, so CONFIG_DRM_I915=y vanished from .config with no
+# warning because CONFIG_PCI was not set. An absent [required] symbol is now
+# a FAIL, not a warning: it means a dependency is unmet or the symbol was
+# renamed upstream, both of which need a human decision.) ---
+CONFIG_PCI=y
+CONFIG_SMP=y
+
+# --- Boot console (failure stage 1, 21 Sept: the first "hang" was invisible) ---
+CONFIG_FB=y
+CONFIG_FB_EFI=y
+CONFIG_FRAMEBUFFER_CONSOLE=y
+CONFIG_DRM=y
+CONFIG_DRM_I915=y
+CONFIG_DRM_DISPLAY_DP_HELPER=y
+CONFIG_DRM_DISPLAY_HDMI_HELPER=y
+CONFIG_TTY=y
+CONFIG_VT=y
+CONFIG_VT_CONSOLE=y
+CONFIG_UNIX98_PTYS=y
+
+# --- Initramfs (21 Sept: dracut needs these to unpack and start) ---
+CONFIG_BLK_DEV_INITRD=y
+CONFIG_RD_GZIP=y
+CONFIG_RD_ZSTD=y
+CONFIG_BLK_DEV_LOOP=y
+CONFIG_SQUASHFS=y
+CONFIG_SQUASHFS_XZ=y
+CONFIG_SQUASHFS_ZSTD=y
+CONFIG_NLS_CODEPAGE_437=y
+CONFIG_FW_LOADER_COMPRESS=y
+CONFIG_FW_LOADER_COMPRESS_ZSTD=y
+CONFIG_AUTOFS_FS=y
+
+# --- LUKS root (failure stage 2, 21-22 Sept) ---
+# NOTE the Kconfig trap: BLK_DEV_DM lives under `if MD` in drivers/md/Kconfig.
+# With CONFIG_MD disabled, olddefconfig silently forces BLK_DEV_DM and
+# DM_CRYPT off no matter how often they are appended. MD=y is load-bearing.
+CONFIG_MD=y
+CONFIG_BLK_DEV_DM=y
+CONFIG_DM_CRYPT=y
+CONFIG_CRYPTO_AES=y
+CONFIG_CRYPTO_XTS=y
+CONFIG_CRYPTO_AES_NI_INTEL=y
+CONFIG_CRYPTO_SHA256=y
+CONFIG_CRYPTO_SHA512=y
+CONFIG_EXT4_FS=y
+# Preserve Ubuntu root-filesystem ACLs and security-label xattrs.
+CONFIG_EXT4_FS_POSIX_ACL=y
+CONFIG_EXT4_FS_SECURITY=y
+
+# --- Userspace basics (22 Sept: the three symbols that disqualified build #6) ---
+# No devtmpfs  -> no /dev in the initramfs, plausibly no /dev/console for
+#                 init's stdio (the post-initcall silence).
+# No cgroups   -> systemd cannot initialize, in initramfs or on real root.
+# No tmpfs     -> /run and /dev/shm can never mount.
+CONFIG_DEVTMPFS=y
+CONFIG_DEVTMPFS_MOUNT=y
+CONFIG_TMPFS=y
+CONFIG_TMPFS_POSIX_ACL=y
+CONFIG_TMPFS_XATTR=y
+CONFIG_CGROUPS=y
+CONFIG_UNIX=y
+CONFIG_NET=y
+CONFIG_INET=y
+CONFIG_IPV6=y
+CONFIG_NETFILTER=y
+CONFIG_NF_TABLES=y
+CONFIG_NF_TABLES_INET=y
+CONFIG_NF_CONNTRACK=y
+CONFIG_NFT_CT=y
+CONFIG_NFT_LOG=y
+CONFIG_NFT_LIMIT=y
+CONFIG_SYSFS=y
+CONFIG_PROC_FS=y
+CONFIG_INOTIFY_USER=y
+CONFIG_SIGNALFD=y
+CONFIG_TIMERFD=y
+CONFIG_EPOLL=y
+CONFIG_EVENTFD=y
+CONFIG_FHANDLE=y
+CONFIG_BINFMT_ELF=y
+CONFIG_BINFMT_SCRIPT=y
+
+
+# --- EFI early console (22 Sept: build #7 debug output; requires SERIAL_EARLYCON) ---
+CONFIG_SERIAL_EARLYCON=y
+CONFIG_EFI_EARLYCON=y
+
+
+# --- TTY subsystem (22 Sept: absent TTY killed the entire console chain) ---
+CONFIG_TTY=y
+
+
+# 8250 UART selects SERIAL_CORE (required for SERIAL_EARLYCON chain)
+CONFIG_SERIAL_8250=y
+
+CONFIG_SERIAL_8250_CONSOLE=y
+
+# --- This machine's required hardware and isolation paths ---
+CONFIG_INTEL_IOMMU=y
+CONFIG_IRQ_REMAP=y
+CONFIG_KVM_INTEL=y
+CONFIG_MT7921U=y
+CONFIG_SOUND=y
+CONFIG_SND_HDA_INTEL=y
+CONFIG_SND_HDA_CODEC_HDMI_INTEL=y
+CONFIG_TYPEC=y
+CONFIG_TYPEC_UCSI=y
+CONFIG_UCSI_ACPI=y
+CONFIG_TYPEC_DP_ALTMODE=y
+
+# Numeric check: CONFIG_NR_CPUS must be at least 12 for this 12-thread host.
+# scripts/preflight-check.sh performs this check after Kconfig resolution.
+
+[warn]
+# Desirable; systemd degrades gracefully without them. Promote to [required]
+# only with a observed boot failure to justify it.
+CONFIG_PROC_SYSCTL=y
+CONFIG_SECCOMP=y
+CONFIG_SECCOMP_FILTER=y
+CONFIG_CHECKPOINT_RESTORE=y
+
+# --- Early boot debug (22 Sept: build #7 hung silent; earlyprintk=efi was a no-op
+# because this symbol was absent from .config) ---

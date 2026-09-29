@@ -82,3 +82,12 @@ Thumbs.db
 # Local-only notes that may contain hostnames, IPs, or credentials
 local-notes/
 private/
+
+# Kernel packages (built locally, never committed)
+*.deb
+*.changes
+*.buildinfo
+
+# Local kernel source (reference upstream tag v6.18.53 instead)
+linux-6.18.53/
+*.tar.xz

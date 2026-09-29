@@ -27,10 +27,19 @@ partially addressed, and what is explicitly out of scope.
 - Samsung PM9A1 1 TB NVMe (APST, PS4 = 5 mW)
 - Networking: external MediaTek MT7921U USB Wi-Fi (0e8d:7961) ONLY. The internal
   AX211 was physically removed and disabled. No PCI wired Ethernet NIC on this unit.
-- Thunderbolt disabled by the user in firmware. Bluetooth removed by user choice
-  (CONFIG_BT=n). No fingerprint reader, no webcam on this unit.
+- The stock Ubuntu kernel was observed binding both Thunderbolt NHI controllers.
+  On running audit3, both NHI PCI functions still enumerate but have no driver
+  bound; `boltctl list` reports no devices. Firmware `ThunderboltAccess` exists,
+  but its current value needs a privileged read. PCI enumeration alone does not
+  establish that PCIe tunneling is active. The custom profile omits USB4
+  tunneling while retaining HDMI and USB-C DisplayPort Alternate Mode.
+  Bluetooth is removed by user choice (CONFIG_BT=n). No fingerprint reader or
+  webcam is installed on this unit.
 - TPM 2.0: Nuvoton NTC0702 discrete TPM. Policy: LUKS2 + TPM2 + PIN with a
   separate offline recovery passphrase.
+- Active `/swap.img` is on the root ext4 LV inside `dm_crypt-0` (LUKS), so its
+  on-disk blocks already share the root encryption boundary; no swap migration
+  or new key is required.
 - Suspend: s2idle only (no S3). Battery 52.5 Wh design, 75/80% charge thresholds.
 
 Serial numbers, disk serials, and MAC addresses are deliberately redacted everywhere.
@@ -43,15 +52,18 @@ path. Nothing here is claimed to "make the system secure"; each reduces a specif
 attack surface under stated assumptions.
 
 - **Custom hardware-tailored kernel** (LTS branch, 6.18 candidate, re-verify at
-  build time). Removes drivers for hardware this machine does not have (AMD/NVIDIA
-  GPUs, unrelated Wi-Fi vendors, unused subsystems), which shrinks the trusted
-  computing base. Cost: you own patching and rebuilds. Limitation: the build only
+  build time). Removes selected drivers for hardware this machine does not have
+  (AMD/NVIDIA GPUs and unrelated Wi-Fi vendors); the audit5 candidate config
+  also removes non-Lenovo platform drivers and synthetic 802.15.4 radios. This is a reduction,
+  not a comprehensively minimized kernel or a measured security gain. Cost:
+  you own patching and rebuilds. Limitation: the build only
   tracks the LTS branch you choose; a missed CVE window leaves you exposed.
   Recovery: the distro kernel is ALWAYS retained as a rescue boot entry and is
   never auto-deleted, along with every prior working custom kernel.
-- **Secure Boot via shim + MOK**, enabled only AFTER the custom kernel is built,
-  booted, and validated (the platform is currently in Setup Mode with no PK
-  enrolled). Purpose: anchor the boot chain. Cost: one-time enrollment procedure
+- **Secure Boot via shim + MOK**. The running audit3 custom kernel has booted
+  with Secure Boot and integrity lockdown; audit5 has not. Purpose: anchor the
+  boot chain.
+  Cost: one-time enrollment procedure
   with a key custodian. Limitation: in Setup Mode, anyone with physical access can
   enroll their own keys, so physical security matters until Secure Boot is on.
   Recovery: MOK removal procedure documented; rescue kernel remains bootable.
@@ -83,12 +95,12 @@ attack surface under stated assumptions.
   bus 4 port 1). Purpose: bound the damage a malicious USB device can do, since
   the only network path is USB. Cost: a wrong policy kills networking. Limitation:
   VID:PID alone is weak identity; rules also key on bus/port.
-- **Thunderbolt kernel driver excluded; VT-d/IOMMU stays required.** Purpose:
-  eliminate the Thunderbolt DMA exposure class, since the user disabled TB in
-  firmware and uses no TB peripherals. Cost: none on this unit (nothing uses TB).
-  Limitation: NHI sysfs nodes may still enumerate; IOMMU must still be active for
-  the USB and other DMA-capable devices. Recovery: re-enable in firmware and
-  rebuild with the driver if usage ever changes.
+- **USB4/Thunderbolt tunneling excluded; direct external displays retained.**
+  The 6.18 kernel option is `CONFIG_USB4`; the profile leaves it off while
+  keeping i915 HDMI and Type-C/UCSI DisplayPort Alternate Mode. Direct HDMI
+  and USB-C DP adapters are the intended monitor paths. A Thunderbolt dock
+  that requires USB4 tunneling needs a different build and a separate test.
+  VT-d/IOMMU remains required for other DMA-capable devices.
 
 ## Usability goals
 

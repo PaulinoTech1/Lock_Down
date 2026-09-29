@@ -1,6 +1,7 @@
 # Hardware State
 
-Resolved hardware state for the supported unit as of 2026-09-21. This is the
+Resolved hardware state for the supported unit, initially inventoried
+2026-09-21 and updated through 2026-09-25. This is the
 authoritative input to every config decision in the repo. Labels:
 
 - **VERIFIED**: observed on this machine via inventory or runtime checks.
@@ -20,9 +21,10 @@ kernel config removes drivers for absent hardware.
 - BIOS N3MET29W 1.28 (2026-05-14), EC N3MHT19W, UEFI 2.7. VERIFIED
 - Intel TME/MKTME enabled by BIOS. VERIFIED. Drives: no config change; document
   as cold-boot disclosure narrowing only, not a LUKS replacement.
-- Secure Boot currently DISABLED; platform in Setup Mode, no PK enrolled
-  (mokutil). VERIFIED. Drives: Phase 6 enrollment plan (shim+MOK, recoverable);
-  physical security is the only control until then.
+- Secure Boot is enabled on the running audit3 kernel, with integrity lockdown
+  reported by securityfs. VERIFIED on 2026-09-24; the earlier Setup Mode note
+  described the pre-enrollment state, not the current state. The signed audit5
+  candidate still needs its own boot-chain check.
 
 ## CPU
 
@@ -142,20 +144,23 @@ Config decision: USBGuard rules keyed on VID:PID plus bus/port, never VID:PID
 alone; no default-deny USB policy until the whitelist is proven against the
 verified adapter.
 
-## Thunderbolt
+## Thunderbolt and external displays
 
-- User-disabled in firmware. VERIFIED (user action; confirm the UEFI pre-boot
-  TB authorization setting reads as expected at Phase 0).
-- NHI sysfs nodes may still enumerate despite the firmware disable. VERIFIED
-  (observed behavior class; check at Phase 0).
-- No Thunderbolt dock, eGPU, or peripheral is used with this machine. VERIFIED
-  (owner statement).
+- On 2026-09-23 the running Ubuntu kernel bound both Thunderbolt 4 NHI
+  controllers (PCI 00:0d.2 and 00:0d.3). A claimed firmware disablement is
+  therefore unverified; PCI enumeration alone would not prove a dock works.
+- i915 exposed one HDMI, four DisplayPort, and one internal eDP connector.
+  Only the internal eDP panel was connected during the audit. UCSI ACPI
+  provided two USB-C Type-C ports. No external monitor was present to test.
+- The owner does not require Thunderbolt peripherals but does require an
+  external monitor. Intended paths: direct HDMI and direct USB-C DisplayPort
+  Alternate Mode. A Thunderbolt dock needing USB4 tunneling is not covered.
 
-Config decision: exclude the thunderbolt kernel driver from the build. This
-eliminates the Thunderbolt DMA exposure class on this unit. VT-d/IOMMU stays
-required regardless, for the USB controller and other DMA-capable devices.
-RECOMMENDED: verify the UEFI pre-boot TB authorization setting at Phase 0 and
-record it.
+Config decision: keep i915, Type-C/UCSI, DP Alternate Mode, and HDMI audio;
+exclude `CONFIG_USB4` and `CONFIG_TYPEC_TBT_ALTMODE` in the hardened profile.
+VT-d/IOMMU remains required. Validate both external monitor paths on the
+built kernel before making it the default; verify any firmware pre-boot
+authorization setting separately.
 
 ## Bluetooth
 

@@ -19,7 +19,10 @@ If a kernel configuration change ever touches EFI_VARS, EFI_RUNTIME_WRAPPER, or 
 - BIOS (UEFI firmware): via LVFS/fwupd when Lenovo publishes for this MTM. Component coverage for MT 21AJ is UNVERIFIED until `fwupdmgr get-devices` runs on the machine; Lenovo publishes broadly to LVFS for ThinkPads, but confirm per-component rather than assuming.
 - EC (embedded controller): typically bundled with the BIOS capsule on ThinkPads; version it together with BIOS.
 - NVMe firmware (Samsung PM9A1 OEM, fw HPS4NGXH): via Lenovo/LVFS ONLY. Do not use Samsung retail updaters (Magician or retail fwupd plugins targeting retail Samsung drives) on this OEM drive. A retail updater must not be assumed to apply; a wrong-flash can brick the drive. If LVFS offers no NVMe update for this drive, the drive stays on its current firmware until Lenovo publishes one.
-- Thunderbolt firmware: N/A. Thunderbolt is disabled on this machine (per project hardware state). Do not flash Thunderbolt retimer firmware for a disabled controller; if Thunderbolt is ever re-enabled, revisit.
+- Thunderbolt firmware: the running Ubuntu kernel binds both NHI controllers;
+  firmware disablement was not verified. Check `fwupdmgr get-devices` and the
+  UEFI authorization setting before deciding whether a retimer update applies.
+  Firmware flashing remains a separate manual decision.
 - TPM firmware (Nuvoton NTC0702): update only if LVFS offers it AND the update is security-relevant. TPM firmware updates can clear or invalidate sealed state; treat a TPM firmware update like a TPM clear for planning purposes (see docs/TPM.md: recovery passphrase verified, re-seal planned afterward). Never update TPM firmware casually.
 
 ## Before/after version recording

@@ -41,13 +41,14 @@ each assessment is marked High/Medium/Low.
   VID:PID is spoofable, bus/port keying raises the bar but a device on the
   same port can still impersonate; the adapter's firmware itself is trusted
   hardware. Confidence: Medium.
-- **Malicious Thunderbolt device / DMA attack over TB.** Eliminated as a class
-  on this unit: Thunderbolt is disabled by the user in firmware and the
-  thunderbolt kernel driver is excluded from the build. VT-d/IOMMU stays
-  required anyway for the USB and other DMA-capable devices. Cost: none on
-  this unit (no TB peripherals in use). Residual: NHI sysfs nodes may still
-  enumerate; verify the UEFI pre-boot TB authorization setting at Phase 0.
-  Confidence: High (given firmware disablement is verified at implementation).
+- **Malicious Thunderbolt device / DMA attack over TB.** The stock kernel
+  currently binds both NHI controllers, so the earlier firmware-disablement
+  claim was not verified. The custom profile omits `CONFIG_USB4` while keeping
+  direct USB-C DisplayPort Alternate Mode and HDMI. This prevents the custom
+  kernel from driving USB4 tunneled devices, but does not prove pre-boot DMA
+  is blocked. VT-d/IOMMU and a restrictive firmware authorization policy
+  remain necessary. Confidence: Medium for the custom kernel boundary;
+  firmware pre-boot behavior remains unverified.
 - **Local malware / compromised applications.** AppArmor confinement, Yama
   ptrace scope, Landlock where applicable, Wayland session isolation, and a
   minimal application set bound what a compromised process can reach. Cost:
