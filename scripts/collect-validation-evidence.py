@@ -104,13 +104,13 @@ class Evidence:
         data = self.read_bytes(relative, limit)
         return data.decode("utf-8", errors="replace") if data is not None else None
 
-    def command(self, fixture_name, command, env=None, limit=65536):
+    def command(self, fixture_name, command, env=None, limit=65536, returncodes=(0,)):
         if self.offline:
             return self.read("commands/" + fixture_name, limit)
         try:
             process = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                                      check=False, timeout=15, env=env)
-            if process.returncode not in (0, 1, 3) or len(process.stdout) > limit:
+            if process.returncode not in returncodes or len(process.stdout) > limit:
                 return None
             return process.stdout.decode("utf-8", errors="replace")
         except (OSError, subprocess.TimeoutExpired):
@@ -260,7 +260,8 @@ def collect(args):
     verifier_env = os.environ.copy()
     verifier_env["EXPECTED_KERNEL"] = args.expected_kernel
     verifier_output = evidence.command("secure-boot-results.txt",
-        ["bash", str(ROOT / "scripts/verify-secure-boot.sh")], env=verifier_env)
+        ["bash", str(ROOT / "scripts/verify-secure-boot.sh")], env=verifier_env,
+        returncodes=(0, 1, 3))
     verifier_results = {}
     if verifier_output is not None:
         for line in verifier_output.splitlines():
