@@ -55,4 +55,20 @@ grep -q 'PASS source' "$t/log"
 [[ -f "$t/work/linux-6.18.53/Makefile" ]]
 find "$t/work/linux-6.18.53" -depth -delete
 if MAKE_VERSION=6.18.52 run > "$t/log" 2>&1; then echo 'FAIL wrong make kernelversion accepted'; exit 1; fi
+# Genuine source archives include symlinks. These cases require POSIX semantics.
+if [[ "$(uname -s)" == Linux ]]; then
+    mkdir "$t/input/linux-6.18.53/sub"
+    ln -s ../Makefile "$t/input/linux-6.18.53/sub/inside"
+    tar -cJf "$t/linux-6.18.53.tar.xz" -C "$t/input" linux-6.18.53
+    digest="$(sha256sum "$t/linux-6.18.53.tar.xz" | cut -d' ' -f1)"
+    run > "$t/log"
+    [[ -L "$t/work/linux-6.18.53/sub/inside" ]]
+    find "$t/work/linux-6.18.53" -depth -delete
+    ln -s ../../../outside "$t/input/linux-6.18.53/sub/escape"
+    tar -cJf "$t/linux-6.18.53.tar.xz" -C "$t/input" linux-6.18.53
+    digest="$(sha256sum "$t/linux-6.18.53.tar.xz" | cut -d' ' -f1)"
+    reject
+else
+    echo 'SKIP source symlink semantics require Linux'
+fi
 echo 'PASS source provenance fixture suite'

@@ -53,16 +53,44 @@ fi
 actual_signer="$(awk '$2 == "VALIDSIG" {print $3}' "$stage/status")"
 [[ "$actual_signer" == "$fingerprint" ]] || die 'unexpected signer fingerprint'
 echo 'PASS archive digest and cryptographic signer'
-# Fail closed on links, special files or paths outside the expected root.
-tar -tJf "$stage/archive.tar.xz" > "$stage/names"
+# Restrict member spelling so GNU tar's verbose metadata can be parsed safely.
+export LC_ALL=C
+tar --quoting-style=literal -tJf "$stage/archive.tar.xz" > "$stage/names"
 while IFS= read -r name; do
-    [[ "$name" == "linux-$version/"* && "$name" != *'/../'* && "$name" != *'/./'* ]] || die 'unsafe archive member'
+    [[ "$name" =~ ^[A-Za-z0-9_./+@=,-]+$ && "$name" == "linux-$version/"* && "$name" != *'/../'* && "$name" != *'/./'* && "$name" != */.. && "$name" != */. ]] || die 'unsafe archive member'
 done < "$stage/names"
-tar -tvJf "$stage/archive.tar.xz" > "$stage/types"
-if grep -qEv '^[-d]' "$stage/types"; then die 'archive links/special files unsupported'; fi
+tar --quoting-style=literal --full-time --numeric-owner -tvJf "$stage/archive.tar.xz" > "$stage/types"
+: > "$stage/link-names"
+: > "$stage/links"
+while read -r mode owner size day time member arrow target extra; do
+    case "$mode" in
+        [-d]*) [[ -z "$arrow" ]] || die 'unrecognized archive metadata';;
+        l*)
+            [[ "$arrow" == '->' && -z "$extra" && "$target" =~ ^[A-Za-z0-9_./+@=,-]+$ && "$target" != /* ]] || die 'unsafe link metadata'
+            printf '%s\n' "$member" >> "$stage/link-names"
+            printf '%s\t%s\n' "$member" "$target" >> "$stage/links";;
+        *) die 'archive hardlinks/special files unsupported';;
+    esac
+done < "$stage/types"
 mkdir "$stage/extracted"
-tar -xJf "$stage/archive.tar.xz" --no-same-owner --no-same-permissions -C "$stage/extracted"
+# Extract regular files first, with NO archive symlinks present during writes.
+tar -xJf "$stage/archive.tar.xz" --no-same-owner --no-same-permissions --keep-old-files \
+    --no-wildcards --exclude-from="$stage/link-names" -C "$stage/extracted"
 src="$stage/extracted/linux-$version"
+while IFS=$'\t' read -r member target; do
+    link="$stage/extracted/$member"
+    parent="$(dirname -- "$link")"
+    [[ "$(realpath -e "$parent")" == "$parent" ]] || die 'symlink or missing link parent'
+    resolved="$(realpath -m -- "$parent/$target")" || die 'invalid link target'
+    [[ "$resolved" == "$src" || "$resolved" == "$src/"* ]] || die 'link escapes source tree'
+    ln -s -- "$target" "$link"
+    [[ -L "$link" ]] || die 'filesystem does not support source symlinks'
+done < "$stage/links"
+# Recheck after all links exist to catch chained escapes or loops.
+while IFS=$'\t' read -r member target; do
+    resolved="$(realpath -m -- "$stage/extracted/$member")" || die 'invalid chained link'
+    [[ "$resolved" == "$src" || "$resolved" == "$src/"* ]] || die 'chained link escapes source tree'
+done < "$stage/links"
 [[ -f "$src/Makefile" && ! -e "$src/.config" && ! -e "$src/include/generated" && ! -e "$src/.git" ]] || die 'source layout or freshness invalid'
 [[ -z "$(find "$src" -type f \( -name '*.o' -o -name '*.cmd' -o -name vmlinux -o -name autoconf.h \) -print -quit)" ]] || die 'generated build artifacts in archive'
 # No make runs before authentication/freshness checks.
