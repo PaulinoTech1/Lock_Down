@@ -29,6 +29,7 @@ for f in "$archive" "$signature" "$keyring" "$config"; do [[ -f "$f" && -r "$f" 
 [[ $(grep -c '^CONFIG_LOCALVERSION=' "$config") == 1 ]] || die 'ambiguous LOCALVERSION'
 grep -Fxq "CONFIG_LOCALVERSION=\"$localversion\"" "$config" || die 'incorrect LOCALVERSION'
 grep -Fxq '# CONFIG_LOCALVERSION_AUTO is not set' "$config" || die 'LOCALVERSION_AUTO must be disabled'
+! grep -q '^CONFIG_LOCALVERSION_AUTO=' "$config" || die 'contradictory automatic suffix'
 for tool in gpg xz tar sha256sum make; do command -v "$tool" >/dev/null || { echo "UNKNOWN missing $tool"; exit 3; }; done
 stage="$(mktemp -d "$(dirname -- "$dest")/.source-check.XXXXXXXX")"
 # Preserve failed evidence; no recursive deletion or reuse of old trees.
@@ -45,6 +46,9 @@ if ! xz -cd -- "$stage/archive.tar.xz" | gpg --batch --no-options --homedir "$st
     die 'detached signature verification failed'
 fi
 # Pin the actual signing key fingerprint, not a user ID or short key ID.
+if grep -Eq '^\[GNUPG:\] (BADSIG|ERRSIG|EXPSIG|EXPKEYSIG|REVKEYSIG|KEYEXPIRED|SIGEXPIRED|KEYREVOKED|FAILURE|ERROR)( |$)' "$stage/status"; then
+    die 'invalid, expired or revoked signature/key status'
+fi
 [[ $(grep -c '^\[GNUPG:\] VALIDSIG ' "$stage/status") == 1 ]] || die 'ambiguous/missing verified signer'
 actual_signer="$(awk '$2 == "VALIDSIG" {print $3}' "$stage/status")"
 [[ "$actual_signer" == "$fingerprint" ]] || die 'unexpected signer fingerprint'
@@ -62,7 +66,8 @@ src="$stage/extracted/linux-$version"
 [[ -f "$src/Makefile" && ! -e "$src/.config" && ! -e "$src/include/generated" && ! -e "$src/.git" ]] || die 'source layout or freshness invalid'
 [[ -z "$(find "$src" -type f \( -name '*.o' -o -name '*.cmd' -o -name vmlinux -o -name autoconf.h \) -print -quit)" ]] || die 'generated build artifacts in archive'
 # No make runs before authentication/freshness checks.
-actual_version="$(make -s --no-print-directory -C "$src" kernelversion)"
+actual_version="$(env -u MAKEFLAGS -u MFLAGS -u GNUMAKEFLAGS -u MAKEFILES -u KBUILD_OUTPUT \
+    -u KBUILD_SRC -u KERNELRELEASE make -s --no-print-directory -C "$src" kernelversion)"
 [[ "$actual_version" == "$version" ]] || die 'make kernelversion mismatch'
 [[ ! -e "$dest" && ! -L "$dest" ]] || die 'destination appeared during verification'
 mv -T -- "$src" "$dest"

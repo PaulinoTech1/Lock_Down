@@ -13,6 +13,7 @@ cat > "$t/bin/gpg" <<'EOF'
 #!/usr/bin/env bash
 cat >/dev/null
 echo "[GNUPG:] VALIDSIG ${SIGNER:-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA} 2026-01-01 0 0 4 0 1 10 00 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+[[ -z "${GPG_STATUS:-}" ]] || echo "[GNUPG:] $GPG_STATUS"
 exit "${GPG_EXIT:-0}"
 EOF
 cat > "$t/bin/make" <<'EOF'
@@ -41,6 +42,7 @@ VERSION=6.18.52 reject
 HASH=0000000000000000000000000000000000000000000000000000000000000000 reject
 SIGNER=BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB reject
 GPG_EXIT=1 reject
+GPG_STATUS='EXPKEYSIG fixture expired' reject
 LOCAL=-wrong reject
 mkdir -p "$t/work/linux-6.18.53"
 touch "$t/work/linux-6.18.53/.config"

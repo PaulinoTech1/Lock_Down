@@ -43,7 +43,9 @@ for package in debhelper libdw-dev libelf-dev; do
 done
 [[ "$profile" != diagnostic ]] || command -v pahole >/dev/null || die 'missing pahole'
 # No arbitrary MAKEFLAGS/LOCALVERSION/KCONFIG_CONFIG or compiler override.
-unset MAKEFLAGS MFLAGS KBUILD_OUTPUT KCONFIG_CONFIG LOCALVERSION
+unset MAKEFLAGS MFLAGS GNUMAKEFLAGS MAKEFILES KBUILD_OUTPUT KBUILD_SRC KERNELRELEASE
+unset KCONFIG_CONFIG KCONFIG_ALLCONFIG KBUILD_KCONFIG KBUILD_EXTMOD LOCALVERSION
+unset ARCH SRCARCH CROSS_COMPILE LLVM LLVM_IAS HOSTCC HOSTCXX LD AR NM OBJCOPY OBJDUMP STRIP
 export CC=gcc
 # shellcheck source=scripts/safe-directory.sh
 source "$repo/scripts/safe-directory.sh"
@@ -88,21 +90,8 @@ cmp -- "$run/resolved.config" "$src/.config" || die 'config changed during compi
 shopt -s nullglob
 packages=("$run/"*.deb)
 (( ${#packages[@]} )) || die 'no packages produced'
-images=0
-for package in "${packages[@]}"; do
-    name="$(dpkg-deb -f "$package" Package)"
-    if [[ "$name" == "linux-image-$release" ]]; then
-        images=$((images + 1))
-        verify="$(mktemp -d "$run/package-check.XXXXXXXX")"
-        dpkg-deb -x "$package" "$verify"
-        cmp -- "$run/resolved.config" "$verify/boot/config-$release" || die 'package/config mismatch'
-        [[ -f "$verify/boot/vmlinuz-$release" && ! -L "$verify/boot/vmlinuz-$release" ]] || die 'missing package kernel image'
-        [[ -z "$(find "$verify" -type f -name '*.ko*' -print -quit)" ]] || die 'unexpected module payload'
-    elif [[ "$name" == linux-image-* ]]; then
-        die 'unexpected image package release'
-    fi
-done
-[[ "$images" == 1 ]] || die 'expected exactly one matching kernel image package'
+bash "$repo/scripts/verify-build-packages.sh" "$release" "$run/resolved.config" \
+    "$src/arch/x86/boot/bzImage" "$run" "${packages[@]}"
 [[ "$(sha256sum "$archive" | cut -d' ' -f1)" == "${digest,,}" ]] || die 'source archive changed'
 bash "$repo/scripts/write-build-manifest.sh" "$version" "$release" "$archive" "${signer^^}" \
     "$run/requested.config" "$run/resolved.config" "$run/firmware.conf" "$commit" "${packages[@]}" > "$run/manifest.json.tmp"
