@@ -318,10 +318,11 @@ def collect(args):
     group_count = len([item for item in groups if item.is_dir()]) if groups is not None else None
     iommu_evidence = bool(logs and logs["dmar"] and logs["irq_remapping"])
     add(checks, "iommu", "UNKNOWN" if groups is None or logs is None else
-        "PASS" if group_count and iommu_evidence else "FAIL",
+        "FAIL" if group_count == 0 else "PASS" if iommu_evidence else "WARN",
         "IOMMU groups or bounded kernel log unavailable" if groups is None or logs is None else
-        "groups, DMAR and IRQ remapping evidence present" if group_count and iommu_evidence else
-        "IOMMU groups, DMAR or IRQ remapping evidence missing",
+        "IOMMU groups absent" if group_count == 0 else
+        "groups, DMAR and IRQ remapping evidence present" if iommu_evidence else
+        "groups present; bounded log lacks DMAR or IRQ remapping evidence",
         {"group_count": group_count, "dmar_lines": logs["dmar"] if logs else None,
          "irq_remapping_lines": logs["irq_remapping"] if logs else None})
 
@@ -364,9 +365,9 @@ def collect(args):
         "i915 runtime power state unavailable" if runtime_state is None else "i915 runtime power state recorded; no power claim",
         {"state": runtime_state if runtime_state in {"active", "suspended", "suspending", "resuming", "unsupported"} else "UNKNOWN"})
 
-    usb_entries = evidence.entries("sys/bus/usb/devices") or []
+    usb_entries = evidence.entries("sys/bus/usb/devices")
     usb = []
-    for item in usb_entries:
+    for item in usb_entries or []:
         if len(usb) >= 64:
             break
         relative = f"sys/bus/usb/devices/{item.name}"
@@ -377,6 +378,14 @@ def collect(args):
         driver_text = (evidence.read(relative + "/driver_name", limit=64) or "").strip()
         driver_path = evidence.path(relative + "/driver")
         driver = safe_name(driver_text or (driver_path.resolve().name if driver_path and driver_path.is_symlink() else ""))
+        if not evidence.offline and driver == "UNKNOWN":
+            # USB drivers commonly bind an interface (1-1:1.0), not its parent device (1-1).
+            for interface in usb_entries:
+                if interface.name.startswith(item.name + ":"):
+                    link = evidence.path(f"sys/bus/usb/devices/{interface.name}/driver")
+                    if link and link.is_symlink():
+                        driver = safe_name(link.resolve().name)
+                        break
         bus = (evidence.read(relative + "/busnum", limit=16) or "").strip()
         port = (evidence.read(relative + "/devpath", limit=32) or "").strip()
         usb.append({"vid_pid": f"{vid}:{pid}", "driver": driver,
@@ -384,7 +393,8 @@ def collect(args):
                     "port": port if re.fullmatch(r"[0-9.]{1,16}", port) else None})
     wifi = [item for item in usb if item["vid_pid"] == "0e8d:7961"]
     wifi_bound = any(item["driver"] == "mt7921u" for item in wifi)
-    add(checks, "wifi-driver", "PASS" if wifi_bound else "FAIL",
+    add(checks, "wifi-driver", "UNKNOWN" if usb_entries is None else "PASS" if wifi_bound else "FAIL",
+        "USB inventory unavailable" if usb_entries is None else
         "MT7921U USB adapter bound" if wifi_bound else "MT7921U adapter or driver binding absent",
         {"adapter_count": len(wifi), "bound": wifi_bound})
     add(checks, "usb-topology", "PASS" if usb else "UNKNOWN",
@@ -414,7 +424,8 @@ def collect(args):
     kvm_config = "CONFIG_KVM_INTEL=y" in config_text.splitlines()
     vhost = evidence.exists("dev/vhost-net")
     tun = evidence.exists("dev/net/tun")
-    add(checks, "kvm", "PASS" if kvm and kvm_config else "FAIL",
+    add(checks, "kvm", "UNKNOWN" if config_data is None else "PASS" if kvm and kvm_config else "FAIL",
+        "kernel config unavailable" if config_data is None else
         "KVM device and config present; no VM was launched" if kvm and kvm_config else
         "KVM device or config missing",
         {"dev_kvm": kvm, "config_kvm_intel": kvm_config, "vhost_net": vhost, "tun": tun})
