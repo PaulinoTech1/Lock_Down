@@ -1,97 +1,49 @@
 #!/usr/bin/env bash
-#
-# verify-module-signatures.sh - Read-only audit of loaded module signatures.
-#
-# For each loaded module, reports whether it is signed and, where the kernel
-# exposes signer identity, by which key. Unsigned loaded modules are flagged.
-#
-# Read-only: this script changes no system state.
-#
-# Method: kernels built with module signature support expose
-# /sys/module/<name>/signature for some modules; modinfo shows the signature
-# section of the module file when readable. Where neither is available the
-# module is reported as UNKNOWN, never assumed signed or unsigned.
-#
+# Read-only evidence inventory. Metadata/markers NEVER establish trusted signing.
+# 0 monolithic N/A; 1 unsigned evidence; 2 usage; 3 incomplete cryptographic trust.
 set -euo pipefail
-
-SYSFS_SIG=0
-MODINFO_SIG=0
-
-if ls -d /sys/module/*/signature >/dev/null 2>&1; then
-    SYSFS_SIG=1
+config="/boot/config-$(uname -r)" module=''
+while (( $# )); do
+    [[ $# -ge 2 ]] || exit 2
+    case "$1" in --config) config="$2";; --module) module="$2";; *) exit 2;; esac
+    shift 2
+done
+if [[ -z "$module" && -r "$config" ]] && grep -qx '# CONFIG_MODULES is not set' "$config" && ! grep -q '^CONFIG_MODULES=' "$config"; then
+    echo 'NOT_APPLICABLE module signatures: supplied config is monolithic'
+    exit 0
 fi
-if command -v modinfo >/dev/null 2>&1; then
-    MODINFO_SIG=1
+files=()
+if [[ -n "$module" ]]; then
+    files=("$module")
+else
+    command -v modinfo >/dev/null || { echo 'UNKNOWN modinfo unavailable'; exit 3; }
+    loaded="$(lsmod)" || { echo 'UNKNOWN loaded module list unavailable'; exit 3; }
+    while IFS= read -r name; do
+        [[ -n "$name" ]] || continue
+        path="$(modinfo -n "$name")" || { echo 'UNKNOWN module path unavailable'; exit 3; }
+        files+=("$path")
+    done < <(awk 'NR>1 {print $1}' <<< "$loaded")
 fi
-
-if [ "$SYSFS_SIG" -eq 0 ] && [ "$MODINFO_SIG" -eq 0 ]; then
-    printf 'UNKNOWN: neither /sys/module/*/signature nor modinfo is available; cannot audit module signatures on this kernel.\n'
-    exit 3
-fi
-
-total=0
-signed=0
-unsigned=0
-unknown=0
-
-while IFS= read -r modpath; do
-    mod="${modpath#/sys/module/}"
-    mod="${mod%/signature}"
-    total=$((total + 1))
-
-    signer="unknown-signer"
-    state="UNKNOWN"
-
-    if [ "$SYSFS_SIG" -eq 1 ] && [ -r "/sys/module/$mod/signature" ]; then
-        sig="$(cat "/sys/module/$mod/signature" 2>/dev/null || true)"
-        if [ -n "$sig" ]; then
-            state="SIGNED"
-            # sysfs signature content varies; keep the first line as the identity hint.
-            signer="$(printf '%s' "$sig" | head -n 1 | cut -c1-80)"
-        else
-            state="UNSIGNED"
-        fi
-    elif [ "$MODINFO_SIG" -eq 1 ]; then
-        info="$(modinfo -F signature "$mod" 2>/dev/null || true)"
-        if [ -n "$info" ]; then
-            state="SIGNED"
-            signer="$(printf '%s' "$info" | head -n 1 | cut -c1-80)"
-        else
-            # modinfo prints nothing for signature when the module file has no
-            # signature section OR when modinfo cannot read the module file.
-            # Distinguish: if the module file exists and is readable but has
-            # no appended signature marker, it is unsigned.
-            kofile="$(modinfo -n "$mod" 2>/dev/null || true)"
-            if [ -n "$kofile" ] && [ -r "$kofile" ]; then
-                if grep -q -a '~Module signature appended~' "$kofile" 2>/dev/null; then
-                    state="SIGNED"
-                    signer="signature-present-signer-not-exposed"
-                else
-                    state="UNSIGNED"
-                fi
+fail=0
+for file in "${files[@]}"; do
+    [[ -r "$file" && -f "$file" ]] || { echo 'UNKNOWN module file unavailable'; continue; }
+    case "$file" in
+        *.ko)
+            if grep -aq '~Module signature appended~' "$file"; then
+                echo "INFO marker present: $file"
             else
-                state="UNKNOWN"
-            fi
-        fi
-    fi
-
-    case "$state" in
-        SIGNED)   signed=$((signed + 1));   printf 'SIGNED   %-28s key: %s\n' "$mod" "$signer" ;;
-        UNSIGNED) unsigned=$((unsigned + 1)); printf 'UNSIGNED %-28s <-- flagged: loaded without a signature\n' "$mod" ;;
-        *)        unknown=$((unknown + 1));  printf 'UNKNOWN  %-28s (signature state not readable)\n' "$mod" ;;
+                echo "FAIL signature marker absent: $file"
+                fail=1
+            fi;;
+        *.ko.xz|*.ko.zst|*.ko.gz) echo "INFO compressed module: marker not inspected: $file";;
+        *) echo "UNKNOWN unsupported module representation: $file";;
     esac
-done < <(lsmod | awk 'NR>1 {print $1}' | sort -u)
-
-printf '\nSummary: %d loaded modules: %d signed, %d unsigned, %d unknown.\n' \
-    "$total" "$signed" "$unsigned" "$unknown"
-
-if [ "$unsigned" -gt 0 ]; then
-    printf 'FAIL: %d unsigned module(s) are loaded. Under Secure Boot with MODULE_SIG_FORCE this must not happen.\n' "$unsigned"
-    exit 1
-fi
-if [ "$unknown" -gt 0 ]; then
-    printf 'WARN: %d module(s) could not be verified; treat as unverified, not as signed.\n' "$unknown"
-    exit 2
-fi
-printf 'PASS: all loaded modules carry signatures.\n'
-exit 0
+    if metadata="$(modinfo -F signer "$file" 2>/dev/null)" && [[ -n "$metadata" ]]; then
+        echo "INFO parseable signer metadata present: $file (not cryptographic verification)"
+    else
+        echo "UNKNOWN signer metadata: $file"
+    fi
+done
+echo 'UNKNOWN cryptographic trust: no content/signature verification or kernel trust-chain validation performed'
+(( fail == 0 )) || exit 1
+exit 3
