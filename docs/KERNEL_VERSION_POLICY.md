@@ -34,6 +34,11 @@ The custom kernel is only as secure as its last stable update. Patch tracking is
 
 ## Update test plan
 
+The build helper now requires explicit authenticated source inputs and uses a
+fresh private workspace. See [tooling integrity](TOOLING_INTEGRITY.md) for the
+required arguments, provenance manifest, exit statuses and validation limits.
+This tooling does not replace the owner's release-currentness or hardware checks.
+
 Every point-release rebuild must pass this sequence before the new kernel becomes the default boot entry:
 
 1. **Build**: `make` completes cleanly with the hardened config; no new warnings in enabled subsystems (warnings are reviewed, not waived).
