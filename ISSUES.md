@@ -1,7 +1,33 @@
-# Lock_Down open issues
+# Lock_Down status and issue ledger
 
-Status is evidence-based. A static check cannot close a boot or hardware issue.
-See `docs/AUDIT3_BOOT_CHECKLIST.md` for the supervised test record.
+Status checked against the audit10 owner runbook and current candidate on
+29 September 2026. A static check cannot close a boot or hardware issue.
+
+## Current open issues and validation blockers
+
+| Severity | Item | Current evidence and next step |
+| --- | --- | --- |
+| High | Audit10 physical function | The supervised audit10 boot established 12 CPUs, mapper root, Secure Boot with integrity lockdown, connected MT7921U Wi-Fi, and zero failed system units. The owner still needs internal/external display, brightness, audio, keyboard, TrackPoint, touchpad, direct USB-C DisplayPort, and post-resume function tests. See `docs/AUDIT10_OWNER_RUNBOOK.md`. |
+| High | Real KVM guest | The diskless smoke passed twice; no defined libvirt guest was present. Launch an isolated overlay and real guest under the intended networking/guest-agent policy on the ThinkPad. |
+| High | USB storage persistence | A 64 MiB read/copy/eject check was reported, but the first insertion logged a lost write on an improperly unmounted FAT volume. Reinsert and read back before claiming persistence; test additional storage paths as needed. |
+| High | s2idle and recovery | Suspend/resume, post-resume peripherals, previous custom fallback, and stock rescue boot remain untested on audit10. Keep the owner-supervised recovery path. |
+| Medium | USB-C/Thunderbolt policy | Historical audit3 NHI and `boltctl` observations do not prove firmware tunneling policy or direct USB-C DisplayPort function. Read ThinkLMI policy with owner privileges and perform physical port tests. |
+| Medium | Power benefit | No matched stock-versus-candidate power comparison exists. Measure only after function and recovery validation. |
+| Medium | Audit11 decision evidence | The analyzer and collector are tooling, not a candidate. Review a small proposal against authenticated Linux 6.18.53 source, inspect all collateral deltas, then separately build and validate if the owner chooses to proceed. |
+
+## Resolved tooling and historical findings
+
+Source provenance and freshness enforcement are implemented in
+`scripts/verify-kernel-source.sh` and `scripts/build-kernel.sh`; their limits
+are recorded in `docs/TOOLING_INTEGRITY.md`. The older open item below reflects
+the audit3-era general build script and is retained for provenance, not current
+status. The audit2 emergency boot and audit3 firmware/config findings likewise
+remain historical. Audit10 runtime evidence supersedes their open-state wording
+where it directly covers the same behavior. The tables below preserve the
+original issue text and dates; see `docs/AUDIT3_BOOT_CHECKLIST.md` for that
+supervised record.
+
+### Historical audit2/audit3 issue ledger (as originally recorded)
 
 | Opened | Severity | Issue | Status / next evidence |
 | --- | --- | --- | --- |
