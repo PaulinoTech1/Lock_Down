@@ -19,6 +19,11 @@ jobs:
           find scripts tests lock-down-kernel/scripts -name '*.sh' -print0 | xargs -0 shellcheck -S error
       - name: Current candidate static policy
         run: bash scripts/check-current-candidate.sh
+      - name: Audit11 Python syntax and offline evidence fixtures
+        run: |
+          python3 -B -m py_compile scripts/analyze-kconfig-delta.py scripts/collect-validation-evidence.py
+          python3 -B tests/test-kconfig-analysis.py
+          python3 -B tests/test-validation-collector.py
       - name: Bounded safety checks (matches redacted)
         run: bash scripts/check-static-safety.sh .
       - name: Behavioral fixtures and disposable cryptographic integration
