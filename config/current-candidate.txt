@@ -1,0 +1,5 @@
+# Static policy target only; not a production promotion or build authorization.
+config=config/candidate-6.18.53-lockdown-t14g3-audit10.config
+firmware=config/60-lockdown-audit10-firmware.conf
+version=6.18.53
+localversion=-lockdown-t14g3-audit10
