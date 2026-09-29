@@ -91,3 +91,7 @@ private/
 # Local kernel source (reference upstream tag v6.18.53 instead)
 linux-6.18.53/
 *.tar.xz
+
+# Python analysis and offline fixture bytecode
+__pycache__/
+*.pyc
