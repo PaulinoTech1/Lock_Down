@@ -1,7 +1,14 @@
 # Audit10 owner-run installation and supervised boot
 
-Audit10 is a **signed, statically checked package**, not an installed or
-boot-validated kernel. It starts from the running audit9 config and removes
+Status update, 29 September 2026: audit10 is signed, installed, and running.
+The owner completed a supervised boot and a basic USB-storage read/copy/eject
+check. The deterministic diskless KVM smoke passed twice; a real libvirt guest,
+the remaining physical-device checklist, suspend/resume, and fallback/default
+boot tests are not yet complete. Stages A-C below preserve the original
+installation and boot instructions as a historical record; do not rerun
+`dpkg -i` merely because they appear here.
+
+Audit10 starts from the installed audit9 config and removes
 28 specialty USB, USB test, and legacy USB-storage helper options. The
 resolved config differs from audit9 only in those 28 `y`-to-`n` values and
 the release name. Generic USB mass storage, UAS, xHCI, HID, MT7921U Wi-Fi,
@@ -25,7 +32,7 @@ Ubuntu kernel installed. Do not remove older kernels, change swap, or change
 GRUB environment read-back showed a hostdisk warning. Use the visible GRUB
 menu for a supervised trial.
 
-## Stage A: owner-approved installation
+## Stage A: owner-approved installation (completed)
 
 First compare the exact package digest. Stop if it differs:
 
@@ -47,7 +54,7 @@ sudo sbverify --cert '/home/the-ascended1/.sb-keys/MOK.pem' '/boot/vmlinuz-6.18.
 
 Do not reboot merely because installation succeeds.
 
-## Stage B: preboot hold point
+## Stage B: preboot hold point (completed)
 
 Check the generated initramfs and fallback menu before selecting audit10.
 The LUKS UUID must be `6dc6712f-ec48-4782-a37a-9cef06b82a0d` and the
@@ -66,7 +73,7 @@ Stop if a boot-critical component is missing, the LUKS UUID differs, the
 regulatory database or firmware is absent, or GRUB loses audit9/stock
 fallbacks. Share the output for review before booting audit10.
 
-## Stage C: one supervised boot
+## Stage C: one supervised boot (initial boot completed)
 
 With physical access and the LUKS recovery passphrase available, manually
 select audit10 under GRUB's Advanced options. After login:
@@ -92,3 +99,35 @@ recheck input, display, Wi-Fi, audio, and charging. Record each item as pass,
 fail, or untested. If audit10 fails to boot or a required device stops
 working, select audit9 or stock Ubuntu from GRUB and preserve the failure
 logs. Static package verification is not a substitute for this boot test.
+
+## Verified runtime checkpoint and open tests
+
+`dpkg-query` reports audit10 `6.18.53-18` installed. The installed
+`/boot/config-6.18.53-lockdown-t14g3-audit10` matches the repository snapshot
+at SHA-256 `121a6769868273d437d19d309a628793fabbec07f65e806568035740bd377f54`.
+The installed kernel verifies against the existing MOK certificate. The
+generated initramfs contains the expected LUKS UUID, LVM root, Intel
+microcode, i915/SOF/MT7921U firmware, and regulatory database/signature.
+GRUB still lists audit9 and stock Ubuntu 7.0.0-34; `GRUB_DEFAULT=0` was not
+changed.
+
+On the supervised audit10 boot, `uname -r` reported
+`6.18.53-lockdown-t14g3-audit10`; the mapper-backed ext4 root mounted,
+Secure Boot was enabled, lockdown selected `integrity`, all 12 logical CPUs
+were available, MT7921U Wi-Fi connected, and `systemctl --failed` showed zero
+system units. A SanDisk 0781:55a9 USB drive enumerated through UAS and mounted
+as vfat. A 64 MiB file read succeeded; the owner copied screenshots and
+reported a successful safe eject. The first insertion was deliberately
+removed too quickly and logged a lost write; the drive had already reported
+an improperly unmounted FAT volume. Do not call that FAT volume healthy, and
+do not claim copied-file persistence until a later reinsert/read check.
+
+`bash scripts/kvm-smoke.sh` passed 2/2 diskless guest initializations on the
+running audit10 kernel. Host validation found KVM, `/dev/kvm`, vhost-net,
+TUN, Intel DMAR/IOMMU and normal guest prerequisites available. The root-run
+validator warned only that confidential-guest SEV/TDX support was unavailable;
+an unprivileged run additionally warned about the cgroup devices check.
+`virsh list --all` showed no defined guest. The owner-supplied
+`qemu-img check` found no errors in the existing audit9 qcow2 image, but the
+audit10 overlay and real guest have not been launched. Keep the audit9 image
+unmodified and use a separate overlay for the next VM test.

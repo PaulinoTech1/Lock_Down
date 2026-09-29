@@ -4,7 +4,7 @@ Lock_Down custom kernel audit and change log
 .SH SUMMARY
 This document records the read-only audit, hardware evidence, configuration findings, repository changes, and validation performed for the Lenovo ThinkPad T14 Gen 3 Intel custom Linux 6.18.53 kernel.
 .PP
-The earlier signed audit2 kernel booted but failed functional validation. Audit3 was signed, installed, and booted with essential paths working; its runtime and physical checklist is still incomplete. Audit4 is signed but not installed. Audit5 carries the non-Lenovo driver and unused-radio removals; its resolved config passed static gates, but the package build did not complete. Audit6, audit7, audit8, and audit9 were separately built, signed, installed, and booted. Audit9 is currently running with owner-reported physical hardware checks passing; the owner has not yet completed KVM/VM testing, suspend, or fallback testing. Audit10 removes 28 specialty/test/legacy-bridge USB options from audit9; it is built and MOK-signed but not installed or booted. The stock Ubuntu kernel remains installed with GRUB_DEFAULT=0.
+The earlier signed audit2 kernel booted but failed functional validation. Audit3 was signed, installed, and booted with essential paths working; its runtime and physical checklist is still incomplete. Audit4 is signed but not installed. Audit5 carries the non-Lenovo driver and unused-radio removals; its resolved config passed static gates, but the package build did not complete. Audit6, audit7, audit8, and audit9 were separately built, signed, installed, and booted. Audit9's owner-reported physical hardware checks passed, but its real-guest, suspend, and fallback testing remain open. Audit10 removes 28 specialty/test/legacy-bridge USB options from audit9; it is now built, MOK-signed, installed, and running. Audit10's basic USB-storage read/copy/eject check and deterministic KVM smoke passed; its full physical-device checklist, real VM, suspend/resume, and fallback checks remain open. The stock Ubuntu kernel remains installed with GRUB_DEFAULT=0.
 .SH TARGET PLATFORM
 .IP \(bu 2
 Lenovo ThinkPad T14 Gen 3 Intel, machine type 21AJ.
@@ -925,7 +925,55 @@ $ sha256sum \e
 .ft R
 .fi
 .PP
-Audit10 has not been installed, has no generated /boot initramfs or GRUB entry, and has not booted. The running audit9 kernel remains untouched. docs/AUDIT10_OWNER_RUNBOOK.md provides the exact digest, owner-only sudo installation commands, preboot hold point, supervised manual GRUB selection, and postboot hardware/KVM checklist. No active swap, GRUB default, or previously installed kernel was changed.
+At this signed-package hold point audit10 had not yet been installed, had no generated /boot initramfs or GRUB entry, and had not booted. The subsequent owner installation and supervised boot are recorded in the next section. docs/AUDIT10_OWNER_RUNBOOK.md preserves the exact digest, owner-only sudo installation commands, preboot hold point, supervised manual GRUB selection, and postboot hardware/KVM checklist. No active swap, GRUB default, or previously installed kernel was changed by the build.
+.SH AUDIT10 INSTALLATION AND RUNTIME CHECKPOINT, 29 SEPTEMBER 2026
+.PP
+The owner used one sudo authentication to verify the signed .deb checksum, install the exact-release dracut firmware drop-in, install linux-image-6.18.53-lockdown-t14g3-audit10 version 6.18.53-18, and regenerate GRUB. The package post-install generated /boot/initrd.img-6.18.53-lockdown-t14g3-audit10. It logged nonfatal depmod and missing-firmware warnings for built-in drivers, plus dracut's inability to read /proc/modules on this no-loadable-modules kernel. These warnings did not establish a functional failure; the installed kernel, initramfs, and GRUB menu were inspected separately. The kdump-tools image was generated but crash-dump functionality was not tested.
+.PP
+The installed EFI image verified against the existing MOK certificate. The installed /boot config matched the repository audit10 snapshot at SHA-256 121a6769868273d437d19d309a628793fabbec07f65e806568035740bd377f54. The generated initramfs included Intel microcode, crypt/LVM/rootfs-block, ext4 userspace tooling, i915 ADL and TGL firmware, MT7961 Wi-Fi firmware, SOF ADL/topology firmware, regulatory.db and regulatory.db.p7s. Its crypt cmdline named LUKS UUID 6dc6712f-ec48-4782-a37a-9cef06b82a0d and root LV ubuntu-vg/ubuntu-lv; its crypttab referenced the same LUKS UUID. GRUB listed audit10, audit9, and stock 7.0.0-34-generic; GRUB_DEFAULT=0 remained unchanged. These are preboot checks, not boot proof.
+.nf
+.ft CR
+.ps 8
+$ sha256sum \e
+    build/audit10-final/signed/linux-image-6.18.53-lockdown-t14g3-audit10_6.18.53-18_amd64.deb
+8a98c461cdb4ba96e52b24ccb958100763ff2e7485cb3dcb9399fbecbff2ed44
+$ dpkg-query -W linux-image-6.18.53-lockdown-t14g3-audit10
+linux-image-6.18.53-lockdown-t14g3-audit10  6.18.53-18
+$ sbverify --cert /home/the-ascended1/.sb-keys/MOK.pem \e
+    /boot/vmlinuz-6.18.53-lockdown-t14g3-audit10
+Signature verification OK
+$ sha256sum /boot/config-6.18.53-lockdown-t14g3-audit10 \e
+    config/candidate-6.18.53-lockdown-t14g3-audit10.config
+121a6769868273d437d19d309a628793fabbec07f65e806568035740bd377f54  (both)
+.ps 10
+.ft R
+.fi
+.PP
+The supervised boot reached userspace under audit10. Direct read-only checks reported the mapper-backed ext4 root, UEFI Secure Boot enabled, lockdown integrity mode, 12 logical CPUs, connected MT7921U Wi-Fi, a present /dev/kvm, and zero failed systemd system units. The project configuration audit found zero required failures and boot-critical validation passed 82/0/0 against the installed config. These results establish a successful basic boot, not completion of the full hardware and recovery checklist.
+.nf
+.ft CR
+.ps 8
+$ uname -r
+6.18.53-lockdown-t14g3-audit10
+$ findmnt -no SOURCE,FSTYPE /
+/dev/mapper/ubuntu--vg-ubuntu--lv ext4
+$ cat /sys/kernel/security/lockdown
+none [integrity] confidentiality
+$ mokutil --sb-state
+SecureBoot enabled
+$ systemctl --failed
+0 loaded units listed.
+$ bash scripts/kvm-smoke.sh
+PASS run=1 release=6.18.53-lockdown-t14g3-audit10
+PASS run=2 release=6.18.53-lockdown-t14g3-audit10
+KVM smoke: PASS (2/2)
+.ps 10
+.ft R
+.fi
+.PP
+A SanDisk 0781:55a9 USB drive enumerated through xHCI/UAS as /dev/sda and mounted its vfat partition. The first insertion was deliberately unplugged after about two seconds and logged a lost asynchronous write; before that unplug, FAT had already warned that the volume was not properly unmounted. After reinsertion, a 64 MiB file read succeeded and the kernel journal showed no new disconnect or storage I/O error at that read-test checkpoint. A direct-I/O probe returned EINVAL and is inconclusive. The owner then copied screenshots and reported a successful safe eject. This is a basic USB-storage detection/read/copy/eject pass, not a filesystem-health or copied-file persistence check. No filesystem repair was performed.
+.PP
+The diskless KVM smoke passed 2/2 current-kernel guest initializations on a fresh run, and virt-host-validate found VMX, /dev/kvm, vhost-net, TUN, and Intel DMAR/IOMMU available. Its root-run output warned only that confidential-guest SEV/TDX support was absent; the unprivileged run additionally warned for the cgroup devices check. No real libvirt guest has booted: virsh list --all was empty, and the proposed audit10 overlay did not exist at this checkpoint. The owner-supplied qemu-img check found no errors in the existing audit9 test qcow2; the cloud-init seed ISO exists but its contents were not read into this report. Host validation and image health must not be reported as a guest, guest-agent, or guest-network pass.
 .SH SECURITY AND POWER INTERPRETATION
 .PP
 The configuration changes have plausible mechanisms for improving idle behavior and reducing attack surface, but they are not battery-life measurements. Actual benefit must be demonstrated with repeated turbostat, wakeup, interrupt, package C-state, and discharge-rate measurements under identical userspace and firmware conditions.
@@ -944,7 +992,7 @@ No arbitrary governor, NVMe APST, USB autosuspend, or kernel command-line power 
 No mitigation was disabled for benchmark performance.
 .SH REMAINING WORK
 .IP 1. 4
-Audit9 is installed and currently booted. The owner confirmed the required physical hardware checks passed, including keyboard, TrackPoint, touchpad, brightness, speakers, microphone input-meter response, direct USB-C display, USB storage, and HDMI. Check s2idle suspend/resume and record failures or untested items. The headphone jack is excluded from the owner's requirements, and Ethernet is disabled in BIOS and outside the active-use checklist.
+Audit9 remains installed and was booted before audit10. The owner confirmed the required audit9 physical hardware checks passed, including keyboard, TrackPoint, touchpad, brightness, speakers, microphone input-meter response, direct USB-C display, USB storage, and HDMI. Check s2idle suspend/resume and record failures or untested items. The headphone jack is excluded from the owner's requirements, and Ethernet is disabled in BIOS and outside the active-use checklist.
 .IP 2. 4
 Start a real KVM guest with the intended VM workflow. The diskless QEMU initialization passed, but it does not prove that a guest boots or remains usable.
 .IP 3. 4
@@ -954,11 +1002,11 @@ Audit8 is installed and was booted before audit9. Preserve it as an additional k
 .IP 5. 4
 Audit9 is signed, installed, and booted; the owner reported the required physical hardware checklist passing. The owner has not yet completed KVM/VM testing; the deterministic diskless smoke is not accepted as full VM proof. Finish the real Ubuntu guest, guest-agent/network workflow, s2idle suspend/resume, and fallback/default checks before calling audit9 fully validated.
 .IP 6. 4
-Audit10 is built and MOK-signed but not installed or booted. Compare the exact signed-package SHA-256 8a98c461cdb4ba96e52b24ccb958100763ff2e7485cb3dcb9399fbecbff2ed44, then follow docs/AUDIT10_OWNER_RUNBOOK.md for owner-run installation, generated-initramfs and GRUB inspection, and a supervised manual boot. Recheck USB storage, Wi-Fi, display, input, audio, KVM, and suspend; no static gate establishes that result.
+Audit10 is built, MOK-signed, installed, and booted; basic root, lockdown, Wi-Fi, USB-storage read/copy/eject, and diskless KVM smoke checks passed. Complete its remaining physical checklist, real VM with guest network/agent, s2idle suspend/resume, crash-dump checks if required, and fallback/default boot checks before calling it fully validated. Reinsert the SanDisk to verify copied-file persistence if that claim is needed, and separately assess its dirty FAT filesystem. Do not infer the health of every USB bridge from one drive.
 .IP 7. 4
 The owner reported firmware ThunderboltAccess=Disable. Inspect firmware setup separately for any PCIe-tunneling control if a firmware-policy claim is required. NHI enumeration alone is not a firmware-policy answer. No setting was changed as part of this release.
 .IP 8. 4
-After audit10's own supervised test, review staged filesystem and lockdown/audio cuts separately. SquashFS, AutoFS, FUSE, kexec/crash dump, X86_MSR, KVM, external-display, firmware, removable-media, and recovery functions still require explicit keep/remove decisions. USB/IP and legacy watchdog contention remain separate candidates; neither is part of the audit10 cut.
+After audit10's full functional test, review staged filesystem and lockdown/audio cuts separately. SquashFS, AutoFS, FUSE, kexec/crash dump, X86_MSR, KVM, external-display, firmware, removable-media, and recovery functions still require explicit keep/remove decisions. USB/IP and legacy watchdog contention remain separate candidates; neither is part of the audit10 cut.
 .IP 9. 4
 Only after functional and fallback validation, compare stock and custom kernels with repeated matched power measurements, then evaluate any additional hardening changes. Do not infer power or security improvements from the count of disabled Kconfig symbols.
 .SH FILES
@@ -1017,4 +1065,4 @@ docs/THUNDERBOLT.md
 .IP \(bu 2
 docs/kernel-audit-change-log.ms
 .SH END
-This report documents repository changes and validation through 29 September 2026. Audit9 6.18.53-17 is currently running: uname -r confirms its release, the mapper-backed ext4 root is mounted, Secure Boot is enabled with integrity lockdown, and systemctl reports zero failed units. The owner reports the required physical hardware checklist passing, including keyboard, TrackPoint, touchpad, brightness, speaker playback, microphone, direct USB-C display, USB storage, HDMI, and MT7921U Wi-Fi. A fresh deterministic diskless KVM smoke passed four guest initializations, but the owner has not completed KVM/VM testing; a full libvirt guest and suspend/resume remain open. Audit8 and audit9 are installed; audit3, audit6, audit7, and stock Ubuntu 7.0.0-34 are also installed as fallback choices. Audit10 6.18.53-18 makes only the 28 approved USB exclusions plus a unique release identity, passed static configuration and package-signature gates, and is built and signed but neither installed nor booted. Stock 34 is installed and GRUB_DEFAULT=0 remains unchanged; a successful stock 34 boot and fallback behavior have not been reverified here. No power gain or exploit mitigation magnitude was measured. The headphone jack is out of scope, and swap is unchanged.
+This report documents repository changes and validation through 29 September 2026. Audit10 6.18.53-18 is currently running: uname -r confirms its release, the mapper-backed ext4 root is mounted, Secure Boot is enabled with integrity lockdown, Wi-Fi is connected, 12 logical CPUs are available, and systemctl reports zero failed system units. Its installed config matches the audited snapshot and its installed image verifies against the existing MOK certificate. The owner reported a successful basic USB-storage copy and safe eject after a 64 MiB file read, but the drive's dirty FAT state and copied-file persistence were not cleared or checked. The deterministic diskless KVM smoke passed 2/2 on audit10; host KVM/IOMMU checks passed for an ordinary guest, but no real libvirt guest, guest-agent, or guest-network result exists yet. Audit9's owner-reported physical hardware checklist passed before this boot; audit10's corresponding full physical checklist, s2idle suspend/resume, fallback/default boot, and crash-dump validation remain open. Audit8 and audit9 are installed; audit3, audit6, audit7, and stock Ubuntu 7.0.0-34 are also installed as fallback choices. Stock 34 is installed and GRUB_DEFAULT=0 remains unchanged; a successful stock 34 boot and fallback behavior have not been reverified here. No power gain or exploit mitigation magnitude was measured. The headphone jack is out of scope, and swap is unchanged.
