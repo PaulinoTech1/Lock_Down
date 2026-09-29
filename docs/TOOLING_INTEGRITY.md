@@ -141,6 +141,9 @@ unsafe path ancestors, and changed input hashes. It signs a private snapshot
 into a private sibling directory, verifies with `sbverify --cert` against a
 snapshot of the supplied certificate, then checks the original identity/hash
 again before atomic replacement. A predictable `IMAGE.signed` path is never used.
+The existing-signature check reads `sbverify --list` output: that command can
+return success while reporting `No signature table present`. An actual listed
+signature requires `--force`; unrecognized output stops with UNKNOWN.
 
 `--modules-dir` remains optional for monolithic callers. If it contains any
 `.ko*` artifact, including compressed modules or symlinks, the helper returns
@@ -225,6 +228,11 @@ Current candidate gates passed: preflight 83/0/0, boot-critical 82/0/0, security
 All available tooling command-fixture suites passed. These results do not
 claim ShellCheck, real cryptographic integration, POSIX symlink coverage, a
 Linux kernel build, or a GitHub Actions run.
+
+The first published GitHub Actions run reached the disposable cryptographic
+fixture and exposed the unsigned-image `sbverify --list` exit-status behavior.
+The follow-up fixture covers unsigned, signed and unknown list output, and the
+repository pins LF checkout for shell and configuration files on Windows.
 
 No audit11 configuration was generated. Frozen audit10 config, firmware,
 runbook, package hashes and evidence were not edited. No owner keys, recovery

@@ -43,7 +43,20 @@ hash() { sha256sum -- "$1" | cut -d' ' -f1; }
 [[ "$(hash "$kernel")" == "${expected,,}" ]] || die 'input digest mismatch'
 for tool in sbsign sbverify; do command -v "$tool" >/dev/null || { echo "UNKNOWN missing $tool"; exit 3; }; done
 if (( dry )); then echo 'NOT_APPLICABLE dry-run: no signing or replacement'; exit 0; fi
-if sbverify --list "$kernel" >/dev/null 2>&1 && (( ! force )); then die 'existing signature; --force required'; fi
+if signature_list="$(sbverify --list "$kernel" 2>&1)"; then
+    list_status=0
+else
+    list_status=$?
+fi
+if (( list_status == 0 )) && grep -Eq '^signature [1-9][0-9]*$' <<< "$signature_list"; then
+    (( force )) || die 'existing signature; --force required'
+elif grep -Fqx 'No signature table present' <<< "$signature_list" \
+    && ! grep -Eq '^signature [1-9][0-9]*$' <<< "$signature_list"; then
+    : # sbverify may return success for an unsigned image.
+else
+    echo 'UNKNOWN unable to classify existing image signature state' >&2
+    exit 3
+fi
 stage="$(mktemp -d "$(dirname -- "$kernel")/.sign-kernel.XXXXXXXX")"
 trap 'rm -f -- "$stage/input" "$stage/output" "$stage/cert"; rmdir -- "$stage"' EXIT
 cp -- "$kernel" "$stage/input"

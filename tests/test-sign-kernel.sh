@@ -18,7 +18,18 @@ printf signed >> "$out"
 EOF
 cat > "$t/bin/sbverify" <<'EOF'
 #!/usr/bin/env bash
-[[ "$1" != --list ]] || exit 1
+if [[ "$1" == --list ]]; then
+    if [[ "${LIST_UNKNOWN:-0}" == 1 ]]; then
+        echo 'image signature inspection failed' >&2
+        exit 1
+    fi
+    if [[ "${LIST_SIGNED:-0}" == 1 ]]; then
+        echo 'signature 1'
+    else
+        echo 'No signature table present'
+    fi
+    exit 0
+fi
 [[ "${VERIFY_FAIL:-0}" == 0 ]] || exit 1
 grep -q signed "${@: -1}"
 EOF
@@ -32,6 +43,10 @@ printf sentinel > "$t/image.signed"
 run > "$t/log"
 [[ $(cat "$t/image") == originalsigned && $(cat "$t/image.signed") == sentinel ]]
 printf original > "$t/image"
+if LIST_SIGNED=1 run > "$t/log" 2>&1; then echo 'FAIL existing signature accepted'; exit 1; fi
+[[ $(cat "$t/image") == original ]]
+if LIST_UNKNOWN=1 run > "$t/log" 2>&1; then echo 'FAIL unknown signature state accepted'; exit 1; fi
+[[ $(cat "$t/image") == original ]]
 for suffix in ko ko.xz ko.zst ko.gz; do
     touch "$t/modules/fixture.$suffix"
     if run > "$t/log" 2>&1; then echo 'FAIL unverified modules accepted'; exit 1; fi
