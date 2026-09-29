@@ -210,29 +210,34 @@ Expected negative-case FAIL output inside a passing suite is not a failing suite
 | Secure Boot | Printed FAIL could return success | Aggregated FAIL/UNKNOWN/N/A; logs informational | Ten command-fixture cases | Real firmware/boot policy not tested from Windows |
 | Signing/modules | Replaced before verification; marker treated as verification | Private staged verification before replacement; unresolved module trust fails closed | Mock signing-order, original-preservation, hash, module/compressed-form fixtures; real crypto test provided | Real sbsigntools integration pending Linux execution; MOK enrollment not established |
 | Diagnostics | Predictable output, selected mode could differ | Private output, ancestor checks, explicit s2idle preflight | Offline collection/default/missing-mode fixtures | POSIX permission/symlink tests must run on Linux; no suspend performed |
-| CI | Two tests and assignment-only duplicates | Current candidate gates, behavioral negative fixtures, redacted scans, required crypto integration | Static policy negative fixtures | GitHub Actions execution pending publication; regex scans are incomplete by design |
+| CI | Two tests and assignment-only duplicates | Current candidate gates, behavioral negative fixtures, redacted scans, required crypto integration | Static policy negative fixtures and passing Linux Actions run | Static checks do not validate hardware; regex scans are incomplete by design |
 
 Windows limits: Git Bash fixture execution is available. ShellCheck, make,
 objcopy, sbsign and sbverify were not found locally; WSL enumeration returned no
 installed distribution. Real symlink semantics were unavailable in Git Bash.
 The local crypto integration test explicitly skipped at missing make. GPG and
 OpenSSL are present, but that does not establish the combined Linux integration
-test. CI installs already-required build/signing/static-check tools and must
-establish these results. No dependency was added to the production runtime.
+test. CI installs already-required build/signing/static-check tools. No
+dependency was added to the production runtime.
 
 Local final checks: shell syntax passed for scripts, tests and skill helpers;
 documentation relative links and bounded safety scanning passed; sysctl parsing
 passed for 30 keys. nftables syntax explicitly skipped because nft is absent.
 Current candidate gates passed: preflight 83/0/0, boot-critical 82/0/0, security
 26 checks, config audit zero required failures, and audit8/9/10 gates PASS.
-All available tooling command-fixture suites passed. These results do not
-claim ShellCheck, real cryptographic integration, POSIX symlink coverage, a
-Linux kernel build, or a GitHub Actions run.
+All available local tooling command-fixture suites passed. Those local results
+did not establish ShellCheck, real cryptographic integration or POSIX symlink
+coverage. No Linux kernel build or hardware validation was performed.
 
 The first published GitHub Actions run reached the disposable cryptographic
 fixture and exposed the unsigned-image `sbverify --list` exit-status behavior.
 The follow-up fixture covers unsigned, signed and unknown list output, and the
 repository pins LF checkout for shell and configuration files on Windows.
+The [follow-up Linux Actions run](https://github.com/PaulinoTech1/Lock_Down/actions/runs/36630031590)
+at `20c187b` passed ShellCheck, current candidate policy, bounded safety checks,
+all behavioral fixtures including disposable GPG/PE signing integration,
+userspace file checks and relative-link validation. It did not build or boot a
+kernel, sign with owner keys or validate the physical ThinkPad.
 
 No audit11 configuration was generated. Frozen audit10 config, firmware,
 runbook, package hashes and evidence were not edited. No owner keys, recovery
