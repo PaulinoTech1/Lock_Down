@@ -1,10 +1,10 @@
-.TH LOCK-DOWN-KERNEL-AUDIT 1 "28 September 2026" "Lock_Down" "Kernel Audit Change Log"
+.TH LOCK-DOWN-KERNEL-AUDIT 1 "29 September 2026" "Lock_Down" "Kernel Audit Change Log"
 .SH NAME
 Lock_Down custom kernel audit and change log
 .SH SUMMARY
 This document records the read-only audit, hardware evidence, configuration findings, repository changes, and validation performed for the Lenovo ThinkPad T14 Gen 3 Intel custom Linux 6.18.53 kernel.
 .PP
-The earlier signed audit2 kernel booted but failed functional validation. Audit3 was signed, installed, and booted with essential paths working; its runtime and physical checklist is still incomplete. Audit4 is signed but not installed. Audit5 carries the non-Lenovo driver and unused-radio removals; its resolved config passed static gates, but the package build did not complete. Audit6 and audit7 were separately built, signed, installed, and booted. Audit7 has owner-reported physical device passes, but suspend, a real KVM guest, and fallback testing remain open. Audit8 removes the media/IR tree; audit9 further removes unused device and protocol families. Both audit8 and audit9 are built and MOK-signed but have not been installed or booted. The stock Ubuntu kernel remains configured as the default path.
+The earlier signed audit2 kernel booted but failed functional validation. Audit3 was signed, installed, and booted with essential paths working; its runtime and physical checklist is still incomplete. Audit4 is signed but not installed. Audit5 carries the non-Lenovo driver and unused-radio removals; its resolved config passed static gates, but the package build did not complete. Audit6, audit7, audit8, and audit9 were separately built, signed, installed, and booted. Audit9 is currently running with owner-reported physical hardware checks passing; the owner has not yet completed KVM/VM testing, suspend, or fallback testing. Audit10 removes 28 specialty/test/legacy-bridge USB options from audit9; it is built and MOK-signed but not installed or booted. The stock Ubuntu kernel remains installed with GRUB_DEFAULT=0.
 .SH TARGET PLATFORM
 .IP \(bu 2
 Lenovo ThinkPad T14 Gen 3 Intel, machine type 21AJ.
@@ -851,7 +851,7 @@ $ sha256sum build/audit9-final/signed/linux-image-6.18.53-lockdown-t14g3-audit9_
 .ft R
 .fi
 .PP
-At this 28 September build-stage hold point, audit9 and audit8 were not yet installed or booted. Both were subsequently installed. On 29 September, uname -r reported audit9, findmnt showed the mapper-backed ext4 root, and systemctl --failed reported zero failed units. The owner reported the audit9 keyboard, TrackPoint, touchpad, brightness, speakers, microphone, MT7921U Wi-Fi, USB storage, HDMI, and direct USB-C display working. The diskless KVM smoke ran four guest initializations, but a full libvirt guest and suspend/resume remain separate checks. These later observations supersede the earlier installation hold without changing the recorded build history.
+At this 28 September build-stage hold point, audit9 and audit8 were not yet installed or booted. Both were subsequently installed. On 29 September, uname -r reported audit9, findmnt showed the mapper-backed ext4 root, and systemctl --failed reported zero failed units. The owner reported the audit9 keyboard, TrackPoint, touchpad, brightness, speakers, microphone, MT7921U Wi-Fi, USB storage, HDMI, and direct USB-C display working, and later confirmed the required physical hardware checklist passed. The diskless KVM smoke ran four guest initializations, but the owner has not yet completed KVM/VM testing; a real guest and suspend/resume remain separate checks. These later observations supersede the earlier installation hold without changing the recorded build history.
 .SH AUDIT10 USB SPECIALTY-DRIVER REDUCTION, 29 SEPTEMBER 2026
 .SS Scope and source-backed risk assessment
 .PP
@@ -888,6 +888,44 @@ preflight: pass=83 fail=0 warn=0
 .ps 10
 .ft R
 .fi
+.SS Build, MOK signing, and the unbooted boundary
+.PP
+The first fresh-source build completed compilation and produced the bzImage, but its command session ended during Debian package staging before any .deb existed. No fatal compiler error appeared in that log. The incremental bindeb-pkg resume exited zero and produced the audit10 amd64 image and libc-dev packages at version 6.18.53-18. The unsigned image package is 39587228 bytes, SHA-256 a85e4d7b7cb1bd02bb8da87166911553ab01a4244b1e8f3de9820e0274cc05e3. Its embedded config matches the audited snapshot byte for byte; all eight unsigned payload MD5 checks passed; no .ko files are present; and sbverify reported no initial signature table. The build logs contain nonfatal maintainer-email single-label-domain, maple_tree and WireGuard frame-size, and linker .note.package warnings. No package-stage error remained after the successful resume.
+.PP
+The existing external MOK key signed only the extracted EFI image; no private key was copied into the repository. The signed image SHA-256 is 5deff16ca4d653a875aaa49a6f73db0de40ce37da6c7b4fb8c58cc3e778b1fe1. The image payload MD5 entry changed from 944aad55d0f215cdf2bd6b0e2d66ee4e to aa7aadc72adaab73c16a34ae23e6564d. After repacking with root ownership and extracting the final signed package into a separate verification stage, all eight payload MD5 checks, the embedded-config comparison, the audit10 USB gate, no-loadable-module check, and sbverify against the existing MOK certificate passed. The final signed image package, whose path appears in the command below and the owner runbook, is 39589142 bytes with SHA-256 8a98c461cdb4ba96e52b24ccb958100763ff2e7485cb3dcb9399fbecbff2ed44. The Debian package container itself is not cryptographically signed.
+.nf
+.ft CR
+.ps 8
+$ cd build/audit10-final
+$ make -C linux-6.18.53 -j12 bindeb-pkg \e
+    KDEB_PKGVERSION=6.18.53-18
+# Initial session stopped after bzImage; incremental resume exited 0.
+$ dpkg-deb -R \e
+    linux-image-6.18.53-lockdown-t14g3-audit10_6.18.53-18_amd64.deb \e
+    sign-stage
+$ sbverify --list \e
+    sign-stage/boot/vmlinuz-6.18.53-lockdown-t14g3-audit10
+No signature table present
+$ sbsign --key /home/the-ascended1/.sb-keys/MOK.priv \e
+    --cert /home/the-ascended1/.sb-keys/MOK.pem \e
+    --output sign-stage/boot/vmlinuz-6.18.53-lockdown-t14g3-audit10.signed \e
+    sign-stage/boot/vmlinuz-6.18.53-lockdown-t14g3-audit10
+# Replace staged image; update its one DEBIAN/md5sums entry.
+$ (cd sign-stage && md5sum -c DEBIAN/md5sums)
+8 payload checks: OK
+$ dpkg-deb --build --root-owner-group sign-stage \e
+    signed/linux-image-6.18.53-lockdown-t14g3-audit10_6.18.53-18_amd64.deb
+$ sbverify --cert /home/the-ascended1/.sb-keys/MOK.pem \e
+    verify-stage/boot/vmlinuz-6.18.53-lockdown-t14g3-audit10
+Signature verification OK
+$ sha256sum \e
+    signed/linux-image-6.18.53-lockdown-t14g3-audit10_6.18.53-18_amd64.deb
+8a98c461cdb4ba96e52b24ccb958100763ff2e7485cb3dcb9399fbecbff2ed44
+.ps 10
+.ft R
+.fi
+.PP
+Audit10 has not been installed, has no generated /boot initramfs or GRUB entry, and has not booted. The running audit9 kernel remains untouched. docs/AUDIT10_OWNER_RUNBOOK.md provides the exact digest, owner-only sudo installation commands, preboot hold point, supervised manual GRUB selection, and postboot hardware/KVM checklist. No active swap, GRUB default, or previously installed kernel was changed.
 .SH SECURITY AND POWER INTERPRETATION
 .PP
 The configuration changes have plausible mechanisms for improving idle behavior and reducing attack surface, but they are not battery-life measurements. Actual benefit must be demonstrated with repeated turbostat, wakeup, interrupt, package C-state, and discharge-rate measurements under identical userspace and firmware conditions.
@@ -906,7 +944,7 @@ No arbitrary governor, NVMe APST, USB autosuspend, or kernel command-line power 
 No mitigation was disabled for benchmark performance.
 .SH REMAINING WORK
 .IP 1. 4
-Audit9 is installed and currently booted. The owner confirmed keyboard, TrackPoint, touchpad, brightness, speakers, microphone input-meter response, direct USB-C display, USB storage, and HDMI on audit9. Check s2idle suspend/resume and record failures or untested items. The headphone jack is excluded from the owner's requirements, and Ethernet is disabled in BIOS and outside the active-use checklist.
+Audit9 is installed and currently booted. The owner confirmed the required physical hardware checks passed, including keyboard, TrackPoint, touchpad, brightness, speakers, microphone input-meter response, direct USB-C display, USB storage, and HDMI. Check s2idle suspend/resume and record failures or untested items. The headphone jack is excluded from the owner's requirements, and Ethernet is disabled in BIOS and outside the active-use checklist.
 .IP 2. 4
 Start a real KVM guest with the intended VM workflow. The diskless QEMU initialization passed, but it does not prove that a guest boots or remains usable.
 .IP 3. 4
@@ -914,12 +952,14 @@ Keep audit3 installed as the observed working rollback and stock 34 as the confi
 .IP 4. 4
 Audit8 is installed and was booted before audit9. Preserve it as an additional known bootable candidate; its media/capture and IR removals are no longer merely static. The owner reported its physical hardware tests passing, but the real-guest, suspend, and full fallback checks were not completed there.
 .IP 5. 4
-Audit9 is signed, installed, and booted; the owner reported required physical hardware working. The deterministic diskless KVM smoke is not a full libvirt VM proof. Finish the real Ubuntu guest, guest-agent/network workflow, s2idle suspend/resume, and fallback/default checks before calling audit9 fully validated.
+Audit9 is signed, installed, and booted; the owner reported the required physical hardware checklist passing. The owner has not yet completed KVM/VM testing; the deterministic diskless smoke is not accepted as full VM proof. Finish the real Ubuntu guest, guest-agent/network workflow, s2idle suspend/resume, and fallback/default checks before calling audit9 fully validated.
 .IP 6. 4
-The owner reported firmware ThunderboltAccess=Disable. Inspect firmware setup separately for any PCIe-tunneling control if a firmware-policy claim is required. NHI enumeration alone is not a firmware-policy answer. No setting was changed as part of this release.
+Audit10 is built and MOK-signed but not installed or booted. Compare the exact signed-package SHA-256 8a98c461cdb4ba96e52b24ccb958100763ff2e7485cb3dcb9399fbecbff2ed44, then follow docs/AUDIT10_OWNER_RUNBOOK.md for owner-run installation, generated-initramfs and GRUB inspection, and a supervised manual boot. Recheck USB storage, Wi-Fi, display, input, audio, KVM, and suspend; no static gate establishes that result.
 .IP 7. 4
-After audit10's own supervised test, review staged filesystem and lockdown/audio cuts separately. SquashFS, AutoFS, FUSE, kexec/crash dump, X86_MSR, KVM, external-display, firmware, removable-media, and recovery functions still require explicit keep/remove decisions. USB/IP and legacy watchdog contention remain separate candidates; neither is part of the audit10 cut.
+The owner reported firmware ThunderboltAccess=Disable. Inspect firmware setup separately for any PCIe-tunneling control if a firmware-policy claim is required. NHI enumeration alone is not a firmware-policy answer. No setting was changed as part of this release.
 .IP 8. 4
+After audit10's own supervised test, review staged filesystem and lockdown/audio cuts separately. SquashFS, AutoFS, FUSE, kexec/crash dump, X86_MSR, KVM, external-display, firmware, removable-media, and recovery functions still require explicit keep/remove decisions. USB/IP and legacy watchdog contention remain separate candidates; neither is part of the audit10 cut.
+.IP 9. 4
 Only after functional and fallback validation, compare stock and custom kernels with repeated matched power measurements, then evaluate any additional hardening changes. Do not infer power or security improvements from the count of disabled Kconfig symbols.
 .SH FILES
 .IP \(bu 2
@@ -977,4 +1017,4 @@ docs/THUNDERBOLT.md
 .IP \(bu 2
 docs/kernel-audit-change-log.ms
 .SH END
-This report documents repository changes and validation through 28 September 2026. Audit7 6.18.53-15 is running with integrity lockdown, 12 CPUs, LUKS/LVM root, MT7921U association, a KVM device, and zero failed systemd units observed. The owner reports keyboard, TrackPoint, touchpad, brightness, speaker playback, microphone input-meter response, direct USB-C display, USB storage, and HDMI passing. Audit8 6.18.53-16 removes 621 built-in media/IR symbols relative to audit7, and audit9 6.18.53-17 removes another 1248 built-ins without adding any; each passed static gates and package-level signature/config checks and is signed but neither is installed or booted. Audit3 6.18.53-11 remains installed as a previously demonstrated custom rollback; audit6 also remains installed. Audit4 is signed but not installed; audit5 has a gated config but no completed image package. Stock 34 remains installed and configured as default, though a successful boot has not been evidenced; stock 31 is deinstalled. Real guest, suspend, audit8/audit9 runtime, default/fallback, and power checklists remain pending; the headphone jack is out of scope. Swap is unchanged.
+This report documents repository changes and validation through 29 September 2026. Audit9 6.18.53-17 is currently running: uname -r confirms its release, the mapper-backed ext4 root is mounted, Secure Boot is enabled with integrity lockdown, and systemctl reports zero failed units. The owner reports the required physical hardware checklist passing, including keyboard, TrackPoint, touchpad, brightness, speaker playback, microphone, direct USB-C display, USB storage, HDMI, and MT7921U Wi-Fi. A fresh deterministic diskless KVM smoke passed four guest initializations, but the owner has not completed KVM/VM testing; a full libvirt guest and suspend/resume remain open. Audit8 and audit9 are installed; audit3, audit6, audit7, and stock Ubuntu 7.0.0-34 are also installed as fallback choices. Audit10 6.18.53-18 makes only the 28 approved USB exclusions plus a unique release identity, passed static configuration and package-signature gates, and is built and signed but neither installed nor booted. Stock 34 is installed and GRUB_DEFAULT=0 remains unchanged; a successful stock 34 boot and fallback behavior have not been reverified here. No power gain or exploit mitigation magnitude was measured. The headphone jack is out of scope, and swap is unchanged.

@@ -3,8 +3,10 @@
 Status update, 29 September 2026: audit9 is already installed and running.
 The installation hold below records the original staged procedure; do not
 repeat `dpkg -i` solely because this historical runbook says to install it.
-The owner reports required physical hardware working. A full libvirt guest,
-s2idle suspend/resume, and fallback/default checks remain open.
+The owner reports required physical hardware checks complete and passing.
+The owner has not yet completed KVM/VM testing. The prior deterministic,
+diskless KVM smoke is only an initialization check, not an accepted real-VM
+result. s2idle suspend/resume and fallback/default checks also remain open.
 
 Target release: `6.18.53-lockdown-t14g3-audit9`; package version `6.18.53-17`.
 Audit9 starts from audit8's resolved config and removes unused USB gadget,
