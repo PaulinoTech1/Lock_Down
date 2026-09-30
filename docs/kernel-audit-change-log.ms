@@ -4,7 +4,7 @@ Lock_Down custom kernel audit and change log
 .SH SUMMARY
 This document records the read-only audit, hardware evidence, configuration findings, repository changes, and validation performed for the Lenovo ThinkPad T14 Gen 3 Intel custom Linux 6.18.53 kernel.
 .PP
-The earlier signed audit2 kernel booted but failed functional validation. Audit3 was signed, installed, and booted with essential paths working; its runtime and physical checklist is still incomplete. Audit4 is signed but not installed. Audit5 carries the non-Lenovo driver and unused-radio removals; its resolved config passed static gates, but the package build did not complete. Audit6, audit7, audit8, and audit9 were separately built, signed, installed, and booted. Audit9's owner-reported physical hardware checks passed, but its real-guest, suspend, and fallback testing remain open. Audit10 removes 28 specialty/test/legacy-bridge USB options from audit9; its basic USB-storage read/copy/eject check and deterministic KVM smoke passed, while its full physical, guest, suspend, and fallback checks remain open. Audit11 removes three test/debug facilities and is built, MOK-signed, installed, and booted to the encrypted root with Secure Boot integrity lockdown and zero failed system units. Its diskless KVM smoke passed twice; a real guest reached serial login and shut down. Physical hardware, guest login and workloads, suspend, and fallback remain open. The stock Ubuntu kernel remains installed with GRUB_DEFAULT=0.
+The earlier signed audit2 kernel booted but failed functional validation. Audit3 was signed, installed, and booted with essential paths working; its runtime and physical checklist is still incomplete. Audit4 is signed but not installed. Audit5 carries the non-Lenovo driver and unused-radio removals; its resolved config passed static gates, but the package build did not complete. Audit6, audit7, audit8, and audit9 were separately built, signed, installed, and booted. Audit9's owner-reported physical hardware checks passed, but its real-guest, suspend, and fallback testing remain open. Audit10 removes 28 specialty/test/legacy-bridge USB options from audit9; its basic USB-storage read/copy/eject check and deterministic KVM smoke passed, while its full physical, guest, suspend, and fallback checks remain open. Audit11 removes three test/debug facilities and is built, MOK-signed, installed, and booted to the encrypted root with Secure Boot integrity lockdown and zero failed system units. Its diskless KVM smoke passed twice; a real guest reached serial login and shut down. Physical hardware, guest login and workloads, suspend, and fallback remain open. Audit12 removes sample code and has been built from authenticated source; it is not yet signed, installed, or tested. The stock Ubuntu kernel remains installed with GRUB_DEFAULT=0.
 .SH TARGET PLATFORM
 .IP \(bu 2
 Lenovo ThinkPad T14 Gen 3 Intel, machine type 21AJ.
@@ -1106,6 +1106,11 @@ After audit10's full functional test, review staged filesystem and lockdown/audi
 Only after functional and fallback validation, compare stock and custom kernels with repeated matched power measurements, then evaluate any additional hardening changes. Do not infer power or security improvements from the count of disabled Kconfig symbols.
 .IP 10. 4
 Audit11 is installed and has a confirmed basic boot, two diskless KVM passes, and a real guest reaching serial login with orderly shutdown. Complete its physical hardware, guest login/network/agent/workload, s2idle suspend/resume, crash-diagnostic, and fallback/default checks in docs/AUDIT11_OWNER_RUNBOOK.md before calling it functionally validated. No audit11 physical hardware test has yet been reported.
+.SH AUDIT12 STAGE 1: REMOVE SAMPLE CODE
+.PP
+On 30 September 2026 the owner authorized the first staged audit12 reduction: disable CONFIG_SAMPLES while retaining KVM, watchdog functionality, crash diagnostics, and the previously validated hardware profile. The authenticated Linux 6.18.53 archive SHA-256 is 4d6fba95c2244b08a7b4144a4d38b9be4fb31abb5e7682ae40bb5cb11374cfe0; the detached signature verified with pinned signer 647F28654894E3BD457199BE38DBBDC86092693E. Audit11 baseline resolved-config SHA-256: 0076026eb1a1e405677c7fbc203888de89cfa5576cb1ac97b1953f7b7a033538. Audit12 resolved-config SHA-256: 444f72d745665f63acce59b7dce4fa9793140acbe56fd643deeb4aedf6dbc911. Full effective-config comparison found no non-sample setting changes beyond the intended release identity.
+.PP
+All seven pre-build gates passed: 83/0/0 preflight, 26 production security-policy checks, boot-critical, project audit, and focused audit8/audit9/audit10 tests. The authenticated-source build completed with GCC 15.2.0 and GNU ld 2.46. The build wrapper verified exact package/config/image identity and retained provenance in build/audit12-final/unsigned/manifest.json. Kernel package: build/audit12-final/unsigned/linux-image-6.18.53-lockdown-t14g3-audit12_6.18.53-1_amd64.deb; size 39579748 bytes; SHA-256 1e2a176d1cc070eaaade6a67ccaec80bf37822644ac46494596177ebe9485ce6. Config SHA-256 is 444f72d745665f63acce59b7dce4fa9793140acbe56fd643deeb4aedf6dbc911. The package remains unsigned and uninstalled. It has not been booted or functionally tested. Audit11 and stock Ubuntu recovery entries are unchanged. Continue with MOK signing and checksum-gated installation only as a separate checkpoint, then inspect generated initramfs/GRUB state before any supervised boot. See docs/audit12/STAGE1.md for the complete manifest hashes and exact review commands.
 .SH FILES
 .IP \(bu 2
 config/hardened.config
@@ -1159,6 +1164,14 @@ tests/test-audit10-usb-config.sh
 docs/AUDIT10_OWNER_RUNBOOK.md
 .IP \(bu 2
 docs/AUDIT11_OWNER_RUNBOOK.md
+.IP \(bu 2
+config/audit12-stage1-proposal.config
+.IP \(bu 2
+config/candidate-6.18.53-lockdown-t14g3-audit12.config
+.IP \(bu 2
+config/60-lockdown-audit12-firmware.conf
+.IP \(bu 2
+docs/audit12/STAGE1.md
 .IP \(bu 2
 config/audit11-stage1-proposal.config
 .IP \(bu 2

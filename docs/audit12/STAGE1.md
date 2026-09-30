@@ -1,7 +1,6 @@
 # Audit12 stage 1: remove kernel sample code
 
-Status, 30 September 2026: **candidate config resolved and gated; build not yet
-run**. Audit11 remains the running kernel. Audit12 starts from the committed
+Status, 30 September 2026: **built; unsigned and not installed**. Audit11 remains the running kernel. Audit12 starts from the committed
 audit11 effective configuration and requests one Kconfig change:
 
 | Symbol | Audit11 | Requested/resolved | Effect |
@@ -33,8 +32,27 @@ and audit10 focused gates. `CONFIG_KVM=y`, `CONFIG_KVM_INTEL=y`,
 `CONFIG_WATCHDOG=y`, `CONFIG_ITCO_WDT=y`, `CONFIG_KEXEC=y`,
 `CONFIG_CRASH_DUMP=y`, `CONFIG_DRM_I915=y`, `CONFIG_USB_STORAGE=y`,
 `CONFIG_THINKPAD_ACPI=y`, `CONFIG_DM_CRYPT=y`, and `CONFIG_SQUASHFS=y` remain.
-These are static checks; no audit12 image has been built, signed, installed,
-booted, or functionally tested yet.
+The audit12 build completed from the authenticated pristine Linux 6.18.53
+archive using GCC 15.2.0 and GNU ld 2.46. Its provenance manifest records the
+requested config SHA-256 `30ec26b9a2be1aceffe9c09319c8e0f394d6fb453d6835ea2f7a3cba3a9c7e30`,
+resolved config SHA-256 above, and firmware drop-in SHA-256
+`327dc28f18f5fbcbb527214ab2bb88fbc1826e2db77375206a0df6384e192642`.
+The retained build workspace is `build/audited.pYoSv3pP/`; the owner-facing
+copy is `build/audit12-final/unsigned/`. The kernel image package is
+`build/audit12-final/unsigned/linux-image-6.18.53-lockdown-t14g3-audit12_6.18.53-1_amd64.deb`,
+39,579,748 bytes, SHA-256
+`1e2a176d1cc070eaaade6a67ccaec80bf37822644ac46494596177ebe9485ce6`.
+The accompanying `linux-libc-dev` package is not needed to install this kernel;
+its SHA-256 is `f27c044cdb8839c3017e91cdeb9363f78bc10081ec184b18314999077ec8266c`.
+The build wrapper passed its exact package/config/image identity check and wrote
+`build/audit12-final/unsigned/manifest.json`. The matching resolved config is
+`build/audit12-final/unsigned/resolved.config`. It did not sign or install
+anything.
+
+The candidate has **not** been MOK-signed, installed, inspected in its
+generated initramfs/GRUB state, booted, or functionally tested. Audit11 and
+stock Ubuntu recovery entries remain untouched. A successful compile is not a
+boot or hardware/KVM validation result.
 
 Reproduce the authenticated delta analysis from the repository root with a
 reviewed public keyring at `build/audit12-inputs/trusted.gpg`:

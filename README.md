@@ -15,9 +15,10 @@ KVM boots, and a real Ubuntu guest boot to serial login followed by ACPI
 shutdown. Physical hardware, guest login/network/agent/workload,
 suspend/resume, and fallback checks remain open. Audit12 is the current
 build candidate; it disables kernel sample code while retaining KVM, real
-watchdog support, and crash diagnostics. It is not yet built, signed, or
-installed. See the [audit11 runbook](docs/AUDIT11_OWNER_RUNBOOK.md) for prior
-runtime evidence and the [audit12 stage-1 record](docs/audit12/STAGE1.md) for
+watchdog support, and crash diagnostics. Audit12 is built, but remains
+unsigned, uninstalled, unbooted, and untested. See the
+[audit11 runbook](docs/AUDIT11_OWNER_RUNBOOK.md) for prior runtime evidence and
+the [audit12 stage-1 record](docs/audit12/STAGE1.md) for
 the candidate config and build boundary. Audit11 decision analysis and
 read-only evidence tooling are in
 [`docs/audit11/USAGE.md`](docs/audit11/USAGE.md). See [`ISSUES.md`](ISSUES.md)
