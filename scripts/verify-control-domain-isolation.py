@@ -104,13 +104,17 @@ def evaluate(data, expect, synthetic=False):
 
     usb = get(data, "usb")
     check("usb-identity", usb,
-          lambda x: isinstance(x, dict) and x.get("count") == 1 and
-          x.get("approved_path") is True,
+          lambda x: isinstance(x, dict) and (
+              (x.get("count") == 1 and x.get("approved_path") is True) or
+              (not guest and not maintenance and x.get("count") == 0)),
           "one approved physical adapter must be identified")
     check("usb-ownership", usb,
-          lambda x: isinstance(x, dict) and x.get("owner") ==
-          ("guest" if guest else "host" if maintenance else "quarantined") and
-          (x.get("driver") == "mt7921u" if maintenance else x.get("driver") is None),
+          lambda x: isinstance(x, dict) and (
+              x.get("owner") == ("guest" if guest else "host" if maintenance else "quarantined") and
+              (x.get("driver") == "mt7921u" if maintenance else x.get("driver") is None) and
+              x.get("authorized") is (guest or maintenance) or
+              not guest and not maintenance and x.get("count") == 0 and
+              x.get("owner") == "absent" and x.get("authorized") is None),
           "USB and host network driver ownership must match the state")
 
     if guest:
@@ -450,8 +454,9 @@ def usb_inventory(approved_path, qemu_pids):
             if (vendor, product) == ("0e8d", "7961"):
                 matches.append(entry)
         if len(matches) != 1:
-            return {"count": len(matches), "owner": "unknown", "driver": None,
-                    "approved_path": False}
+            return {"count": len(matches), "owner": "absent" if not matches else "unknown",
+                    "driver": None,
+                    "approved_path": False, "authorized": None}
         entry = matches[0]
         bound = []
         for interface in entry.parent.glob(entry.name + ":*"):
@@ -459,6 +464,8 @@ def usb_inventory(approved_path, qemu_pids):
             if driver.is_symlink():
                 bound.append(driver.resolve().name)
         driver_name = "mt7921u" if "mt7921u" in bound else (bound[0] if bound else None)
+        authorized = read(entry / "authorized")
+        authorized = authorized == "1" if authorized in ("0", "1") else None
         bus = read(entry / "busnum")
         dev = read(entry / "devnum")
         device_node = None if not bus or not dev else "/dev/bus/usb/{:03d}/{:03d}".format(
@@ -472,11 +479,13 @@ def usb_inventory(approved_path, qemu_pids):
                             qemu_owner = True
                     except OSError:
                         return None
-        owner = ("guest" if qemu_owner and driver_name is None else
-                 "host" if driver_name == "mt7921u" and not qemu_owner else
-                 "quarantined" if driver_name is None and not qemu_owner else "unknown")
+        owner = ("guest" if qemu_owner and driver_name is None and authorized is True else
+                 "host" if driver_name == "mt7921u" and not qemu_owner and authorized is True else
+                 "quarantined" if driver_name is None and not qemu_owner and authorized is False
+                 else "unknown")
         return {"count": 1, "owner": owner, "driver": driver_name,
-                "approved_path": entry.name == approved_path if approved_path else None}
+                "approved_path": entry.name == approved_path if approved_path else None,
+                "authorized": authorized}
     except (OSError, ValueError):
         return None
 

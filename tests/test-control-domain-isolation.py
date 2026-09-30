@@ -34,7 +34,7 @@ def healthy():
                     "autostart_networks": []},
         "qemu": [],
         "usb": {"count": 1, "owner": "quarantined", "driver": None,
-                "approved_path": True},
+                "approved_path": True, "authorized": False},
         "listeners": [], "ksm": False, "iommu": True, "nested": False,
         "guest_xml": None, "maintenance_authorized": False,
         "guest_internet_proven": False,
@@ -101,6 +101,7 @@ class IsolationTests(unittest.TestCase):
         base = healthy()
         base["libvirt"]["running_domains"] = ["approved"]
         base["usb"].update(owner="guest", driver=None)
+        base["usb"]["authorized"] = True
         base["qemu"] = [{"domain": "approved", "uid": 64055, "gid": 64055,
                           "apparmor": "enforce", "seccomp": 2, "no_new_privs": 1,
                           "caps_reviewed": True, "qmp_local": True,
@@ -135,6 +136,7 @@ class IsolationTests(unittest.TestCase):
         data = healthy()
         data["nft"].update(host_output="maintenance", maintenance_if="approved")
         data["usb"].update(owner="host", driver="mt7921u")
+        data["usb"]["authorized"] = True
         data["maintenance_authorized"] = True
         data["ipv4_routes"] = [{"dst": "default", "dev": "approved"}]
         data["dns_links"] = ["approved"]
@@ -145,6 +147,15 @@ class IsolationTests(unittest.TestCase):
         bad = copy.deepcopy(data)
         bad["libvirt"]["running_domains"] = ["approved"]
         self.assertEqual(self.tool.evaluate(bad, "maintenance", synthetic=True)["exit_code"], 1)
+
+    def test_offline_usb_is_not_merely_unbound(self):
+        report = self.report("offline", lambda data: data["usb"].update(authorized=True))
+        self.assertEqual(report["exit_code"], 1)
+
+    def test_unplugged_adapter_can_still_be_offline(self):
+        report = self.report("offline", lambda data: data["usb"].update(
+            count=0, owner="absent", approved_path=False, authorized=None))
+        self.assertEqual(report["exit_code"], 0)
 
     def test_nft_accept_cannot_hide_inside_drop_policy(self):
         base = [
