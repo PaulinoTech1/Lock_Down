@@ -16,6 +16,9 @@
 # with <ANGLE BRACKETS> and must be filled at deployment time. No values are
 # hardcoded.
 
+# HISTORICAL EXAMPLE: incompatible with two-domain exclusive egress.
+# Do not deploy this file in the work-domain mode: the global flush removes
+# the dedicated guard and the output chain below permits host egress.
 flush ruleset
 
 table inet filter {

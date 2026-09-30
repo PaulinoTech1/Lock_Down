@@ -1,4 +1,10 @@
-# Profile: network-lab
+# LAB_ONLY / NON-PRODUCTION: network-lab
+
+This historical multi-VM lab uses NAT and virtual NICs. It is not the daily
+two-domain work configuration. Do not autostart these networks on the control
+host; a future lab needs its own reviewed mode and isolation boundary.
+
+# Profile: network-lab (historical)
 
 Multi-VM lab with inter-VM segmentation. At least one VM is treated as
 hostile to the others (e.g., attacker, victim, observer). Segmentation is

@@ -1,5 +1,11 @@
 # VM Threat Models
 
+**Current daily mode:** [work-domain](../vm-profiles/work-domain/profile.md).
+The three profiles below are historical or lab-only and are not production
+guidance for the exclusive-egress two-domain architecture. The old trusted
+profile assumed a non-hostile guest; the current work guest is assumed fully
+compromised. The untrusted profile's NAT XML is not Internet-isolated.
+
 Three profiles for KVM/libvirt use on this workstation. Each profile names
 its assumed adversary, what it protects, what it costs, and what it does
 NOT protect against. Concrete libvirt configurations live in

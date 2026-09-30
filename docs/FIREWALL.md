@@ -1,5 +1,11 @@
 # Firewall (nftables)
 
+**Two-domain scope:** The libvirt NAT guidance below is historical and must
+not be deployed for the daily [work-domain profile](../vm-profiles/work-domain/profile.md).
+The proposed [exclusive-egress guard](TWO_DOMAIN_ENFORCEMENT_PHASE.md) defaults
+to denied host output outside explicit maintenance. `nftables/workstation.nft`
+remains an incompatible example, not a production two-domain ruleset.
+
 Purpose: give the workstation a simple, auditable packet filter so that nothing on the network can reach services that were never meant to be reachable, and so that outbound expectations are at least documented.
 
 Status: RECOMMENDED. Confidence: High on nftables as the interface; Medium on any given ruleset surviving a real desktop's needs until tested.

@@ -1,5 +1,11 @@
 # USB Security (USBGuard)
 
+**Two-domain scope:** The MT7921U is host-owned only during explicit
+maintenance and guest-owned during approved work mode. The static host
+whitelist instructions below predate the [exclusive-egress design](EGRESS_EXCLUSIVITY_DESIGN.md)
+and do not authorize host autoconnect or direct deployment. Live USBGuard
+policy and handoff behavior still require owner-supervised validation.
+
 Purpose: control which USB devices the kernel authorizes, so a malicious or unexpected device (BadUSB-style HID, rogue network gadget, storage with autorun payloads) cannot simply plug in and act.
 
 Status: RECOMMENDED, with the hard constraint below. Confidence: High on the mechanism; Medium on any specific ruleset until it is proven on the machine.

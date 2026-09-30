@@ -1,4 +1,11 @@
-# Profile: untrusted-analysis
+# LEGACY / NON-PRODUCTION: untrusted-analysis
+
+This profile is incompatible with the current two-domain exclusive-egress
+workflow. Its example network has `<forward mode='nat'/>`, so it is **not
+Internet-isolated**. Do not define or autostart it on the daily control host.
+The material below is retained for historical analysis only.
+
+# Profile: untrusted-analysis (historical)
 
 Malware-ish / suspicious software analysis. Assumes a HOSTILE guest that
 may attempt escape, VM detection, and network reconnaissance. Every
@@ -26,9 +33,9 @@ the control working as designed.
   loses 2 threads on the P-cores; re-enable after the session. See
   `../../docs/CPU_SECURITY.md`.
 
-## Isolated network definition
+## Historical NAT network definition (not isolated from Internet)
 
-Define once per host (virsh net-define):
+The former example defined this on the host. It is not a current deployment instruction:
 
 ```xml
 <network>

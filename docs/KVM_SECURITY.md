@@ -1,5 +1,12 @@
 # KVM Security
 
+**Two-domain scope:** The production work guest uses the
+[work-domain profile](../vm-profiles/work-domain/profile.md). The NAT-zone and
+unrestricted `virt-manager`/`virsh` guidance below describes the older VM
+profiles and must not be applied to the exclusive-egress daily mode. The
+[enforcement phase](TWO_DOMAIN_ENFORCEMENT_PHASE.md) specifies the proposed
+operator lifecycle gate and runtime checks.
+
 Target hardware: Lenovo ThinkPad T14 Gen 3 Intel (MT 21AJ), i5-1245U
 (Alder Lake-U, 2P+8E). VT-x/EPT/VPID and VT-d with interrupt remapping are
 present in silicon (VERIFIED from inventory; UEFI toggle state and active

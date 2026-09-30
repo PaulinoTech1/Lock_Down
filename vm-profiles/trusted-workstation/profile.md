@@ -1,6 +1,13 @@
-# Profile: trusted-workstation
+# INCOMPATIBLE_WITH_TWO_DOMAIN_MODE / NON-PRODUCTION: trusted-workstation
 
-Daily driver VM. Assumes a non-hostile guest; isolates commodity threats
+This historical profile enables host NAT, virtiofs, and SPICE clipboard. Do not
+deploy it as the daily work-domain configuration. Use the current
+[`work-domain` profile](../work-domain/profile.md) after its live approval gates.
+The instructions below are retained to explain the previous design.
+
+# Profile: trusted-workstation (historical)
+
+Historical daily driver VM. Assumes a non-hostile guest; isolates commodity threats
 from the host while allowing the integrations that make daily use practical.
 Full threat model: `../../docs/VM_THREAT_MODELS.md` (Profile 1).
 Host-side hardening: `../../docs/KVM_SECURITY.md`.

@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "profiles": {
+    "work-domain": "CURRENT",
+    "trusted-workstation": "INCOMPATIBLE_WITH_TWO_DOMAIN_MODE",
+    "untrusted-analysis": "LEGACY",
+    "network-lab": "LAB_ONLY"
+  }
+}
