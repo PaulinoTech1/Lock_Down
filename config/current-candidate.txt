@@ -1,5 +1,5 @@
 # Static policy target only; boot validation remains separate.
-config=config/candidate-6.18.53-lockdown-t14g3-audit11.config
-firmware=config/60-lockdown-audit11-firmware.conf
+config=config/candidate-6.18.53-lockdown-t14g3-audit12.config
+firmware=config/60-lockdown-audit12-firmware.conf
 version=6.18.53
-localversion=-lockdown-t14g3-audit11
+localversion=-lockdown-t14g3-audit12

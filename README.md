@@ -10,13 +10,16 @@ that was actually verified on this unit (see `docs/HARDWARE.md` and
 `docs/RUNTIME_VERIFICATION.md`). Anything not verified is labeled UNVERIFIED and
 stays out of the build until it is checked on the machine.
 
-The current static candidate, audit11, is installed and running. Its basic boot
-checks passed; two diskless KVM boots and a real Ubuntu guest boot to serial
-login with ACPI shutdown also passed. Physical hardware, guest login/network
-and workload checks, suspend/resume, and fallback remain open. The package and
-remaining validation checklist are in
-[`docs/AUDIT11_OWNER_RUNBOOK.md`](docs/AUDIT11_OWNER_RUNBOOK.md). Audit11
-decision analysis and read-only evidence tooling are in
+Audit11 is installed and running; it passed basic boot checks, two diskless
+KVM boots, and a real Ubuntu guest boot to serial login followed by ACPI
+shutdown. Physical hardware, guest login/network/agent/workload,
+suspend/resume, and fallback checks remain open. Audit12 is the current
+build candidate; it disables kernel sample code while retaining KVM, real
+watchdog support, and crash diagnostics. It is not yet built, signed, or
+installed. See the [audit11 runbook](docs/AUDIT11_OWNER_RUNBOOK.md) for prior
+runtime evidence and the [audit12 stage-1 record](docs/audit12/STAGE1.md) for
+the candidate config and build boundary. Audit11 decision analysis and
+read-only evidence tooling are in
 [`docs/audit11/USAGE.md`](docs/audit11/USAGE.md). See [`ISSUES.md`](ISSUES.md)
 for validation blockers and historical records.
 
