@@ -10,6 +10,11 @@
 
 **Spec:** [Audit12 stage-0 handoff](../../audit12/HARDENING_PHASE_SPEC.md)
 
+**Owner decision update, 30 September 2026:** The USB/IP-related workflows
+are required for the daily-driver guest design. Task 2's conditional USB/IP
+removal path is closed; preserve its three `=y` symbols. The current
+[stage-0 review](../../audit12/STAGE0_REVIEW.md) records the decision.
+
 ## Global Constraints
 
 - Baseline: `config/candidate-6.18.53-lockdown-t14g3-audit11.config`, SHA-256 `0076026eb1a1e405677c7fbc203888de89cfa5576cb1ac97b1953f7b7a033538`.
@@ -48,7 +53,7 @@
 - [ ] **Step 1: Inventory exact values.** Record `USBIP_CORE`, `USBIP_VHCI_HCD`, `USBIP_HOST`, watchdog leaves, `FUSE_FS`, `FUSE_DAX`, `FUSE_PASSTHROUGH`, and `FUSE_IO_URING` from the complete baseline. Use `git grep` or `Select-String` for text only; do not call text search a Kconfig resolution.
 - [ ] **Step 2: Build the evidence table.** For each track in the spec, cite exact source definitions, direct and reverse dependencies when established, known ThinkPad/VM consumers, interface exposure, regression test, rollback, and confidence. Mark missing source or runtime evidence UNKNOWN. The upstream [Kconfig guide](https://docs.kernel.org/6.18/kbuild/kconfig-language.html) explains why `select`/`imply` and menu dependencies matter.
 - [ ] **Step 3: Choose one bounded recommendation.** Recommend at most one independently testable cut set, or explicitly recommend no cut. State why the others are deferred. Keep core KVM, crash diagnostics, USB xHCI/storage, ThinkPad ACPI, and FUSE/AutoFS consumers unless separately evidenced.
-- [ ] **Step 4: Add the owner decision gate.** Ask specifically whether remote USB import/export, remote token/recovery and guest USB workflows are required if USB/IP is preferred. List the audit11 physical, guest networking/agent/login/workload, suspend and fallback checks still needed before candidate promotion. Say `REVIEW_REQUIRED`; do not add `config/audit12-*.config`.
+- [ ] **Step 4: Record the owner decision.** Remote USB and guest workflows are required for the daily-driver guest design; preserve USB/IP. List the audit11 physical, guest networking/agent/login/workload, suspend and fallback checks still needed before candidate promotion. Say `REVIEW_REQUIRED`; do not add `config/audit12-*.config`.
 
 ### Task 3: Verify and hand off the review memo
 
