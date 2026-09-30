@@ -12,7 +12,7 @@ jobs:
       - name: Existing shell and signing tool dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq shellcheck sbsigntool binutils gnupg openssl make
+          sudo apt-get install -y -qq shellcheck sbsigntool binutils gnupg openssl make nftables iproute2 iputils-ping
       - name: Shell syntax and shellcheck (including skill scripts)
         run: |
           find scripts tests lock-down-kernel/scripts -name '*.sh' -print0 | xargs -0 -n1 bash -n
@@ -24,6 +24,14 @@ jobs:
           python3 -B -m py_compile scripts/analyze-kconfig-delta.py scripts/collect-validation-evidence.py
           python3 -B tests/test-kconfig-analysis.py
           python3 -B tests/test-validation-collector.py
+      - name: Two-domain repository security fixtures
+        run: |
+          python3 -B tests/test-control-domain-isolation.py
+          python3 -B tests/test-work-domain-profile.py
+          python3 -B tests/test-profile-status.py
+          python3 -B scripts/validate-work-domain.py vm-profiles/work-domain/domain.xml
+      - name: Disposable two-domain nftables packet fixture
+        run: sudo env LOCKDOWN_DISPOSABLE_CI=1 CI=true bash tests/test-two-domain-nft-netns.sh
       - name: Bounded safety checks (matches redacted)
         run: bash scripts/check-static-safety.sh .
       - name: Behavioral fixtures and disposable cryptographic integration

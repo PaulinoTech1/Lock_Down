@@ -1,0 +1,28 @@
+# Offline and guest-mode host guard. Load only in an approved disposable test
+# until the ThinkPad owner has reviewed the existing firewall and rollback.
+# This file creates dedicated tables; it never flushes unrelated rules.
+table inet lockdown_guard {
+    chain input {
+        type filter hook input priority 50; policy drop;
+        iifname "lo" accept
+    }
+
+    chain output {
+        type filter hook output priority 50; policy drop;
+        oifname "lo" accept
+    }
+
+    chain forward {
+        type filter hook forward priority 50; policy drop;
+    }
+}
+
+table bridge lockdown_guard {
+    chain output {
+        type filter hook output priority 50; policy drop;
+    }
+
+    chain forward {
+        type filter hook forward priority 50; policy drop;
+    }
+}
