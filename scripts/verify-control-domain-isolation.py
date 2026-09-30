@@ -288,8 +288,9 @@ def nft_state(approved_if):
                 if not isinstance(expr, list):
                     return False
                 if any(isinstance(term, dict) and "accept" in term for term in expr):
-                    loopback_only = (name == "output" and len(expr) == 2 and
-                        expr[0] == {"match": {"op": "==", "left": {"meta": {"key": "oifname"}},
+                    loopback_key = "iifname" if name == "input" else "oifname"
+                    loopback_only = (name in ("input", "output") and len(expr) == 2 and
+                        expr[0] == {"match": {"op": "==", "left": {"meta": {"key": loopback_key}},
                                              "right": "lo"}} and "accept" in expr[1])
                     if not loopback_only:
                         return False

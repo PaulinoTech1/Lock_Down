@@ -159,16 +159,28 @@ class IsolationTests(unittest.TestCase):
                        "type": "filter", "hook": "output", "policy": "drop"}},
             {"chain": {"family": "bridge", "table": "lockdown_guard", "name": "forward",
                        "type": "filter", "hook": "forward", "policy": "drop"}},
+            {"rule": {"family": "inet", "table": "lockdown_guard", "chain": "input",
+                      "expr": [{"match": {"op": "==", "left": {"meta": {"key": "iifname"}},
+                                         "right": "lo"}}, {"accept": None}]}},
+            {"rule": {"family": "inet", "table": "lockdown_guard", "chain": "output",
+                      "expr": [{"match": {"op": "==", "left": {"meta": {"key": "oifname"}},
+                                         "right": "lo"}}, {"accept": None}]}},
         ]
         original = self.tool.json_command
         try:
             self.tool.json_command = lambda argv: {"nftables": base}
             self.assertEqual(self.tool.nft_state(None)["host_output"], "deny")
+            self.assertTrue(self.tool.nft_state(None)["guard"])
             accepted = copy.deepcopy(base)
             accepted.append({"rule": {"family": "inet", "table": "lockdown_guard",
                                       "chain": "output", "expr": [{"accept": None}]}})
             self.tool.json_command = lambda argv: {"nftables": accepted}
             self.assertIsNone(self.tool.nft_state(None)["host_output"])
+            self.assertFalse(self.tool.nft_state(None)["guard"])
+            accepted_input = copy.deepcopy(base)
+            accepted_input.append({"rule": {"family": "inet", "table": "lockdown_guard",
+                                            "chain": "input", "expr": [{"accept": None}]}})
+            self.tool.json_command = lambda argv: {"nftables": accepted_input}
             self.assertFalse(self.tool.nft_state(None)["guard"])
         finally:
             self.tool.json_command = original
