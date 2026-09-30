@@ -7,6 +7,9 @@ t="$(mktemp -d)"
 trap 'find "$t" -depth -delete' EXIT
 mkdir -p "$t/bin" "$t/input/linux-6.18.53" "$t/work"
 printf 'VERSION = 6\nPATCHLEVEL = 18\nSUBLEVEL = 53\n' > "$t/input/linux-6.18.53/Makefile"
+mkdir -p "$t/input/linux-6.18.53/tools/testing"
+printf 'fixture\n' > "$t/input/linux-6.18.53/tools/testing/Dell Inc.,fixture.yaml"
+printf 'fixture\n' > "$t/input/linux-6.18.53/tools/testing/autoconf.h"
 tar -cJf "$t/linux-6.18.53.tar.xz" -C "$t/input" linux-6.18.53
 touch "$t/archive.sign" "$t/keyring.gpg"
 printf 'CONFIG_LOCALVERSION="-fixture"\n# CONFIG_LOCALVERSION_AUTO is not set\n' > "$t/request.config"
@@ -54,6 +57,8 @@ find "$t/work/linux-6.18.53" -depth -delete
 run > "$t/log"
 grep -q 'PASS source' "$t/log"
 [[ -f "$t/work/linux-6.18.53/Makefile" ]]
+[[ -f "$t/work/linux-6.18.53/tools/testing/Dell Inc.,fixture.yaml" ]]
+[[ -f "$t/work/linux-6.18.53/tools/testing/autoconf.h" ]]
 find "$t/work/linux-6.18.53" -depth -delete
 if MAKE_VERSION=6.18.52 run > "$t/log" 2>&1; then echo 'FAIL wrong make kernelversion accepted'; exit 1; fi
 # Genuine source archives include symlinks. These cases require POSIX semantics.

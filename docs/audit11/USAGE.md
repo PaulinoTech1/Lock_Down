@@ -18,6 +18,10 @@ review the required policy gates. An exit-zero analysis is not approval to
 build or promote a candidate. The collector becomes relevant only after an
 exact candidate is separately built, signed, installed, and booted.
 
+The [stage-1 three-symbol review](STAGE1.md) records the first completed
+proposal, its resolved diff, gate results, and reproducible command. It did
+not create an audit11 candidate.
+
 ## Analyze a small config proposal on Linux
 
 Create a proposal containing only intended assignments, for example:

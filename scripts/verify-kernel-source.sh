@@ -57,15 +57,17 @@ echo 'PASS archive digest and cryptographic signer'
 export LC_ALL=C
 tar --quoting-style=literal -tJf "$stage/archive.tar.xz" > "$stage/names"
 while IFS= read -r name; do
-    [[ "$name" =~ ^[A-Za-z0-9_./+@=,-]+$ && "$name" == "linux-$version/"* && "$name" != *'/../'* && "$name" != *'/./'* && "$name" != */.. && "$name" != */. ]] || die 'unsafe archive member'
+    [[ "$name" =~ ^[A-Za-z0-9_./+@=,\ -]+$ && "$name" == "linux-$version/"* && "$name" != *'/../'* && "$name" != *'/./'* && "$name" != */.. && "$name" != */. ]] || die 'unsafe archive member'
 done < "$stage/names"
 tar --quoting-style=literal --full-time --numeric-owner -tvJf "$stage/archive.tar.xz" > "$stage/types"
 : > "$stage/link-names"
 : > "$stage/links"
-while read -r mode owner size day time member arrow target extra; do
+while IFS= read -r line; do
+    mode="${line%% *}"
     case "$mode" in
-        [-d]*) [[ -z "$arrow" ]] || die 'unrecognized archive metadata';;
+        [-d]*) ;;
         l*)
+            read -r mode owner size day time member arrow target extra <<< "$line"
             [[ "$arrow" == '->' && -z "$extra" && "$target" =~ ^[A-Za-z0-9_./+@=,-]+$ && "$target" != /* ]] || die 'unsafe link metadata'
             printf '%s\n' "$member" >> "$stage/link-names"
             printf '%s\t%s\n' "$member" "$target" >> "$stage/links";;
@@ -92,7 +94,7 @@ while IFS=$'\t' read -r member target; do
     [[ "$resolved" == "$src" || "$resolved" == "$src/"* ]] || die 'chained link escapes source tree'
 done < "$stage/links"
 [[ -f "$src/Makefile" && ! -e "$src/.config" && ! -e "$src/include/generated" && ! -e "$src/.git" ]] || die 'source layout or freshness invalid'
-[[ -z "$(find "$src" -type f \( -name '*.o' -o -name '*.cmd' -o -name vmlinux -o -name autoconf.h \) -print -quit)" ]] || die 'generated build artifacts in archive'
+[[ -z "$(find "$src" -type f \( -name '*.o' -o -name '*.cmd' -o -name vmlinux \) -print -quit)" ]] || die 'generated build artifacts in archive'
 # No make runs before authentication/freshness checks.
 actual_version="$(env -u MAKEFLAGS -u MFLAGS -u GNUMAKEFLAGS -u MAKEFILES -u KBUILD_OUTPUT \
     -u KBUILD_SRC -u KERNELRELEASE make -s --no-print-directory -C "$src" kernelversion)"
