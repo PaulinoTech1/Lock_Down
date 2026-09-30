@@ -1,0 +1,8 @@
+.gitattributes text eol=lf
+*.sh text eol=lf
+*.config text eol=lf
+*.conf text eol=lf
+config/*.txt text eol=lf
+Kconfig* text eol=lf
+*.patch text eol=lf
+.github/workflows/*.yml text eol=lf

@@ -10,6 +10,11 @@ that was actually verified on this unit (see `docs/HARDWARE.md` and
 `docs/RUNTIME_VERIFICATION.md`). Anything not verified is labeled UNVERIFIED and
 stays out of the build until it is checked on the machine.
 
+The current static candidate remains audit10. Audit11 decision analysis and
+read-only hardware evidence tooling are described in
+[`docs/audit11/USAGE.md`](docs/audit11/USAGE.md). See [`ISSUES.md`](ISSUES.md)
+for current validation blockers and historical issue records.
+
 ## What this project does NOT claim
 
 No "unhackable", no "military grade", no "zero trust OS", no "quantum-proof".

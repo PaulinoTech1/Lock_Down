@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # dpkg command double: exercise identity gates without building/installing packages.
 set -euo pipefail
+umask 077 # The package verifier requires a private work directory.
 root="$(cd "$(dirname "$0")/.." && pwd)"
 t="$(mktemp -d)"
 trap 'find "$t" -depth -delete' EXIT

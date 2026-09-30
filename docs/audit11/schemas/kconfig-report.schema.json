@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/PaulinoTech1/Lock_Down/blob/main/docs/audit11/schemas/kconfig-report.schema.json",
+  "title": "Lock_Down Kconfig analysis v1",
+  "type": "object",
+  "required": [
+    "schema", "status", "review_required", "baseline", "proposal", "resolved",
+    "requested_changes", "direct_resolved_changes", "collateral_changes",
+    "rejected_requests", "required_symbol_results", "policy_gate_results",
+    "kernel_version", "kernel_release", "source_identity", "confidence_notes",
+    "full_diff", "errors"
+  ],
+  "properties": {
+    "schema": { "const": "lockdown.kconfig-analysis.v1" },
+    "status": { "enum": ["COMPLETE", "FAIL", "UNKNOWN"] },
+    "review_required": { "const": true },
+    "baseline": { "type": "object" },
+    "proposal": { "type": "object" },
+    "resolved": { "type": "object" },
+    "requested_changes": { "type": "array", "items": { "$ref": "#/$defs/change" } },
+    "direct_resolved_changes": { "type": "array", "items": { "$ref": "#/$defs/change" } },
+    "collateral_changes": { "type": "array", "items": { "$ref": "#/$defs/change" } },
+    "rejected_requests": { "type": "array", "items": { "$ref": "#/$defs/change" } },
+    "required_symbol_results": { "type": "array", "items": { "type": "object" } },
+    "policy_gate_results": { "type": "array", "items": { "type": "object" } },
+    "kernel_version": { "type": "string" },
+    "kernel_release": { "type": "string" },
+    "source_identity": { "type": "object" },
+    "confidence_notes": { "type": "array", "items": { "type": "string" } },
+    "full_diff": { "type": "string" },
+    "errors": { "type": "array", "items": { "type": "string" } }
+  },
+  "$defs": {
+    "change": {
+      "type": "object",
+      "required": ["symbol", "baseline_value", "resolved_value", "status", "hardware_relevance"],
+      "properties": {
+        "symbol": { "pattern": "^CONFIG_[A-Z0-9_]+$", "type": "string" },
+        "baseline_value": { "type": "string" },
+        "requested_value": { "type": ["string", "null"] },
+        "resolved_value": { "type": "string" },
+        "status": { "type": "string" },
+        "hardware_relevance": { "type": "string" },
+        "direct_dependencies": { "type": "array", "items": { "type": "string" } },
+        "reverse_dependencies": { "type": "array", "items": { "type": "string" } },
+        "selected_by": { "type": "array", "items": { "type": "string" } },
+        "implied_by": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

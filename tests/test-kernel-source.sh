@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Synthetic source/archive plus command fixtures; never build a kernel.
 set -euo pipefail
+umask 077 # The verifier requires a private source parent even under a permissive caller umask.
 root="$(cd "$(dirname "$0")/.." && pwd)"
 t="$(mktemp -d)"
 trap 'find "$t" -depth -delete' EXIT

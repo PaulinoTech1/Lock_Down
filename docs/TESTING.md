@@ -84,6 +84,12 @@ A matrix row without recorded evidence is not a pass.
 
 ## Rules for all hardware tests
 
+Audit11 evidence tooling has offline classification fixtures in
+`tests/test-kconfig-analysis.py` and `tests/test-validation-collector.py`.
+CI runs these Python tests and syntax checks. They do not execute Linux
+Kconfig against the real release, collect live ThinkPad state, or satisfy
+the physical matrices below. See `docs/audit11/USAGE.md` for owner commands.
+
 - LOCAL label: every matrix above is labeled LOCAL in docs and comments.
   CI runs only `tests/`; it never claims hardware results.
 - Evidence over assertion: "checked" means a command was run and its

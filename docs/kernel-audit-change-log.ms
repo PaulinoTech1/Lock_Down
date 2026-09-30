@@ -986,6 +986,11 @@ $ virsh -c qemu:///system list --all
 .ps 10
 .ft R
 .fi
+.SH AUDIT11 TOOLING RECONCILIATION, 29 SEPTEMBER 2026
+.PP
+The windows-codex collaboration branch was integrated into main before any audit11 build. It adds a Kconfig delta analyzer, a read-only validation evidence collector, versioned report schemas, offline fixtures, and owner-facing usage and design documents. The analyzer requires a reviewed archive digest, detached signature, pinned signer fingerprint, trusted keyring, and the audit10 effective config before it compares a small proposal and all resolved collateral changes. Its output remains review material, not an audit11 candidate. The collector can classify live host observations or explicitly labeled offline fixtures; it does not perform physical tests, boot a VM, or validate a kernel by itself. The current candidate descriptor still points to audit10; no audit11 kernel was built, signed, installed, or booted during this integration.
+.PP
+The incoming issue ledger still said that no real audit10 guest had booted. It was reconciled with the later owner runbook: the guest reached serial login and shut down, while login, sustained networking, guest agent, and workload remain open. Two disposable shell fixtures were made independent of a caller umask of 002 by creating private test directories with umask 077; production source and package verifiers were not relaxed. The merged audit11 Python fixture suites passed 8 and 3 tests respectively, the full tooling fixture suite exited zero including disposable GPG/EFI signing checks, the current audit10 candidate static gates passed, and relative documentation links passed. The nftables syntax test reported an environmental skip, not a demonstrated ruleset load. These checks establish tooling behavior in fixtures and static policy, not release-source Kconfig behavior or ThinkPad hardware validation.
 .SH SECURITY AND POWER INTERPRETATION
 .PP
 The configuration changes have plausible mechanisms for improving idle behavior and reducing attack surface, but they are not battery-life measurements. Actual benefit must be demonstrated with repeated turbostat, wakeup, interrupt, package C-state, and discharge-rate measurements under identical userspace and firmware conditions.
