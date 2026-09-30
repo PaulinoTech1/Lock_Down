@@ -1005,6 +1005,38 @@ Before Kconfig analysis, the source verifier rejected a legitimate upstream file
 The analyzer authenticated the Linux 6.18.53 archive digest 4d6fba95c2244b08a7b4144a4d38b9be4fb31abb5e7682ae40bb5cb11374cfe0 and detached signature with pinned fingerprint 647F28654894E3BD457199BE38DBBDC86092693E, then freshly extracted and resolved the audit10 baseline and proposal in separate Kbuild output trees. The audit10 baseline config hash was 121a6769868273d437d19d309a628793fabbec07f65e806568035740bd377f54. The proposal hash was 9abbb8a85ec491cb8a94d12ee0cce9f96de44f58e50def12baeab76ac584937a, and its resolved-config hash was 643cb36498fb9fc7e665292cc7693cff6b54bbff70bb5ec55069b21bb2ce9672.
 .PP
 All three requests resolved from y to n. The complete resolved diff had zero collateral changes and zero rejected requests. The seven static gates exited zero: preflight 83 pass/0 fail/0 warn, production security policy 26 checks, boot-critical, project audit, and audit8, audit9, and audit10 focused gates. This is a review result only: the analysis retained audit10's LOCALVERSION. A future audit11 candidate needs a unique release identity and a new resolved-config and gate pass. No audit11 image or package was built, signed, installed, or booted, and no audit11 hardware, VM, suspend, fallback, or power benefit is claimed. See docs/audit11/STAGE1.md for the reproducible command and remaining boundaries.
+.SH AUDIT11 BUILD AND SIGNING CHECKPOINT, 30 SEPTEMBER 2026
+.PP
+Following owner authorization to install audit11, the audited config was derived from the running audit10 effective snapshot. Its only four Kconfig changes are the three reviewed y-to-n cuts and CONFIG_LOCALVERSION changing from audit10 to audit11. A fresh, signature-authenticated Linux 6.18.53 extraction ran olddefconfig and left the snapshot byte-for-byte unchanged. Merging config/hardened.config over audit10 and resolving again produced the same config; release identity was 6.18.53-lockdown-t14g3-audit11. The candidate config SHA-256 is 0076026eb1a1e405677c7fbc203888de89cfa5576cb1ac97b1953f7b7a033538. The seven current-candidate static gates and the full tooling fixture suite exited zero. Commit 49fd54ff9ff0f78c85cfd5f80266fa43efe5bf55 records these reviewed inputs.
+.PP
+The build wrapper refused the original checkout before authentication because the repository and build directory are group-writable. Their permissions were not changed. A private local clone of the exact commit under a mode-0700 temporary directory passed the safe-directory check and performed the full authenticated-source bindeb-pkg build. The build exited zero, confirmed unchanged config and release, and compared the unsigned package config and kernel image byte-for-byte with the resolved build outputs. The manifest records the source digest 4d6fba95c2244b08a7b4144a4d38b9be4fb31abb5e7682ae40bb5cb11374cfe0 and pinned signer 647F28654894E3BD457199BE38DBBDC86092693E. The unique image package has Debian version 6.18.53-1; it does not reuse audit10's package name. Its unsigned SHA-256 was 2627b9be6800e73bd839d3cb1afe9e393da682bedc0e36dcb50cce4e5764a864.
+.PP
+The unsigned package's EFI image initially reported No signature table present. The existing external MOK key signed a staged copy using scripts/sign-kernel.sh with the expected unsigned image digest, and sbverify accepted the signed image against the matching certificate. The signing key was not copied into the repository. The inner image SHA-256 is c78f8b73538b9e0c5f488f82e93b4794e2a06934c667e624f326f5d27de7f3c6. The staged package's vmlinuz MD5 entry was updated, the package was rebuilt with root ownership, and a fresh extraction passed all eight payload checksums, config comparison, signature verification, and absence of loadable modules. The outer Debian package is not cryptographically signed. Final installable package: build/audit11-final/signed/linux-image-6.18.53-lockdown-t14g3-audit11_6.18.53-1_amd64.deb; size 39582492 bytes; SHA-256 2f19c8a63fef4cf755fa6c2d6b30148e8a053f304f7314a61a8e4a1578209b8a. The package, build manifest, and log are retained locally under ignored build/audit11-final/.
+.PP
+The transcript below abbreviates long paths and the digest in the signing command for page width; docs/AUDIT11_OWNER_RUNBOOK.md and the retained manifest contain the exact artifact identity and executable owner commands.
+.nf
+.ft CR
+.ps 8
+$ make -s -C fresh-linux-6.18.53 kernelrelease
+6.18.53-lockdown-t14g3-audit11
+$ bash scripts/check-current-candidate.sh
+PASS current candidate static gates; no hardware validation
+$ sbverify --list sign-stage/boot/vmlinuz-audit11
+No signature table present
+$ bash scripts/sign-kernel.sh --expected-sha256 77566819... e
+    --key /home/the-ascended1/.sb-keys/MOK.priv e
+    --cert /home/the-ascended1/.sb-keys/MOK.pem e
+    --kernel sign-stage/boot/vmlinuz-audit11
+Signature verification OK
+$ (cd verify-stage && md5sum -c DEBIAN/md5sums)
+8 payload checks: OK
+$ sha256sum signed/linux-image-audit11.deb
+2f19c8a63fef4cf755fa6c2d6b30148e8a053f304f7314a61a8e4a1578209b8a
+.ps 10
+.ft R
+.fi
+.PP
+Installation is not yet established. sudo -n -l returned interactive authentication required; dpkg-query found no audit11 package, and the running kernel remained audit10. A non-root mokutil --test-key printed an enrolled-key message but exited nonzero after a kernel-keyring access error, so that command was not counted as a fresh enrollment proof. The existing MOK certificate did verify the package image, and audit10 had previously booted with that signing model. The owner must run the exact checksum-gated sudo install block in docs/AUDIT11_OWNER_RUNBOOK.md, then inspect the generated initramfs, LUKS UUID, GRUB fallbacks, and signature before a supervised manual boot. No reboot, GRUB default change, swap change, or kernel deletion was performed here.
 .SH SECURITY AND POWER INTERPRETATION
 .PP
 The configuration changes have plausible mechanisms for improving idle behavior and reducing attack surface, but they are not battery-life measurements. Actual benefit must be demonstrated with repeated turbostat, wakeup, interrupt, package C-state, and discharge-rate measurements under identical userspace and firmware conditions.
@@ -1040,6 +1072,8 @@ The owner reported firmware ThunderboltAccess=Disable. Inspect firmware setup se
 After audit10's full functional test, review staged filesystem and lockdown/audio cuts separately. SquashFS, AutoFS, FUSE, kexec/crash dump, X86_MSR, KVM, external-display, firmware, removable-media, and recovery functions still require explicit keep/remove decisions. USB/IP and legacy watchdog contention remain separate candidates; neither is part of the audit10 cut.
 .IP 9. 4
 Only after functional and fallback validation, compare stock and custom kernels with repeated matched power measurements, then evaluate any additional hardening changes. Do not infer power or security improvements from the count of disabled Kconfig symbols.
+.IP 10. 4
+Install and inspect the signed audit11 package using docs/AUDIT11_OWNER_RUNBOOK.md, then supervise a manual audit11 boot and repeat required hardware, KVM guest, suspend/resume, and fallback checks. Until that owner step, audit11 remains built and signed only.
 .SH FILES
 .IP \(bu 2
 config/hardened.config
@@ -1092,6 +1126,8 @@ tests/test-audit10-usb-config.sh
 .IP \(bu 2
 docs/AUDIT10_OWNER_RUNBOOK.md
 .IP \(bu 2
+docs/AUDIT11_OWNER_RUNBOOK.md
+.IP \(bu 2
 config/audit11-stage1-proposal.config
 .IP \(bu 2
 docs/audit11/STAGE1.md
@@ -1100,4 +1136,4 @@ docs/THUNDERBOLT.md
 .IP \(bu 2
 docs/kernel-audit-change-log.ms
 .SH END
-This report documents repository changes and validation through 30 September 2026. Audit10 6.18.53-18 was confirmed running during the audit11 stage-1 review: uname -r identified its release, the mapper-backed ext4 root was mounted, Secure Boot was enabled with integrity lockdown, Wi-Fi was connected, 12 logical CPUs were available, and systemctl reported zero failed system units. Its installed config matched the audited snapshot and its installed image verified against the existing MOK certificate. The owner reported a successful basic USB-storage copy and safe eject after a 64 MiB file read, but the drive's dirty FAT state and copied-file persistence were not cleared or checked. The deterministic diskless KVM smoke passed 2/2 on audit10. A real Ubuntu 24.04.5 guest booted to the serial login prompt under KVM and shut down cleanly; guest login, sustained network, guest agent, and workloads remain unverified. Audit9's owner-reported physical hardware checklist passed before this boot; audit10's corresponding full physical checklist, s2idle suspend/resume, fallback/default boot, and crash-dump validation remain open. Audit11 stage 1 is only an authenticated-source, three-symbol resolved-config review with all static gates passing. No audit11 kernel was built, signed, installed, or booted. Audit8 and audit9 are installed; audit3, audit6, audit7, and stock Ubuntu 7.0.0-34 are also installed as fallback choices. Stock 34 is installed and GRUB_DEFAULT=0 remains unchanged; a successful stock 34 boot and fallback behavior have not been reverified here. No power gain or exploit mitigation magnitude was measured. The headphone jack is out of scope, and swap is unchanged.
+This report documents repository changes and validation through 30 September 2026. Audit10 6.18.53-18 was confirmed running during audit11 preparation: uname -r identified its release, the mapper-backed ext4 root was mounted, Secure Boot was enabled with integrity lockdown, Wi-Fi was connected, 12 logical CPUs were available, and systemctl reported zero failed system units. Its installed config matched the audited snapshot and its installed image verified against the existing MOK certificate. The owner reported a successful basic USB-storage copy and safe eject after a 64 MiB file read, but the drive's dirty FAT state and copied-file persistence were not cleared or checked. The deterministic diskless KVM smoke passed 2/2 on audit10. A real Ubuntu 24.04.5 guest booted to the serial login prompt under KVM and shut down cleanly; guest login, sustained network, guest agent, and workloads remain unverified. Audit9's owner-reported physical hardware checklist passed before this boot; audit10's corresponding full physical checklist, s2idle suspend/resume, fallback/default boot, and crash-dump validation remain open. Audit11 is now uniquely identified, built, MOK-signed, and package-verified, but not installed or booted because local sudo authentication is required. Audit8 and audit9 are installed; audit3, audit6, audit7, and stock Ubuntu 7.0.0-34 are also installed as fallback choices. Stock 34 is installed and GRUB_DEFAULT=0 remains unchanged; a successful stock 34 boot and fallback behavior have not been reverified here. No power gain or exploit mitigation magnitude was measured. The headphone jack is out of scope, and swap is unchanged.
