@@ -103,7 +103,8 @@ class IsolationTests(unittest.TestCase):
         base["usb"].update(owner="guest", driver=None)
         base["qemu"] = [{"domain": "approved", "uid": 64055, "gid": 64055,
                           "apparmor": "enforce", "seccomp": 2, "no_new_privs": 1,
-                          "caps_reviewed": True, "qmp_local": True}]
+                          "caps_reviewed": True, "qmp_local": True,
+                          "service_uid_verified": True, "qmp_permissions_verified": True}]
         base["guest_xml"] = {"interfaces": 0, "filesystems": 0, "agents": 0,
                              "clipboard": False, "file_transfer": False,
                              "remote_graphics": False, "hostdev_count": 1,
@@ -118,7 +119,8 @@ class IsolationTests(unittest.TestCase):
                 self.assertEqual(self.tool.evaluate(bad, "guest", synthetic=True)["exit_code"], 1)
         for field, value in (("uid", 0), ("gid", 0), ("apparmor", "complain"),
                              ("apparmor", "unconfined"), ("seccomp", 0),
-                             ("qmp_local", False)):
+                             ("qmp_local", False), ("service_uid_verified", False),
+                             ("qmp_permissions_verified", False)):
             with self.subTest(field=field, value=value):
                 bad = copy.deepcopy(base)
                 bad["qemu"][0][field] = value

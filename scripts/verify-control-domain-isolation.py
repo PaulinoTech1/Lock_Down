@@ -6,6 +6,7 @@ import json
 import os
 import pathlib
 import re
+import stat
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
@@ -121,14 +122,27 @@ def evaluate(data, expect, synthetic=False):
               x.get("clipboard") is False and x.get("file_transfer") is False and
               x.get("remote_graphics") is False,
               "guest XML must contain only approved device and display paths")
-        check("qemu-confinement", qemu,
-              lambda rows: isinstance(rows, list) and len(rows) == 1 and
-              rows[0].get("domain") == "approved" and
-              isinstance(rows[0].get("uid"), int) and rows[0]["uid"] > 0 and
-              isinstance(rows[0].get("gid"), int) and rows[0]["gid"] > 0 and
-              rows[0].get("apparmor") == "enforce" and rows[0].get("seccomp") == 2 and
-              rows[0].get("no_new_privs") == 1 and rows[0].get("caps_reviewed") is True and
-              rows[0].get("qmp_local") is True,
+        confinement = None
+        if isinstance(qemu, list):
+            if len(qemu) != 1 or not isinstance(qemu[0], dict):
+                confinement = False
+            else:
+                row = qemu[0]
+                needed = ("domain", "uid", "gid", "apparmor", "seccomp",
+                          "no_new_privs", "caps_reviewed", "qmp_local",
+                          "service_uid_verified", "qmp_permissions_verified")
+                bad = (row.get("domain") not in (None, "approved") or
+                       isinstance(row.get("uid"), int) and row["uid"] == 0 or
+                       isinstance(row.get("gid"), int) and row["gid"] == 0 or
+                       row.get("apparmor") not in (None, "enforce") or
+                       row.get("seccomp") not in (None, 2) or
+                       row.get("no_new_privs") not in (None, 1) or
+                       any(row.get(key) is False for key in (
+                           "caps_reviewed", "qmp_local", "service_uid_verified",
+                           "qmp_permissions_verified")))
+                confinement = False if bad else None if any(
+                    row.get(key) is None for key in needed) else True
+        check("qemu-confinement", confinement, lambda x: x is True,
               "QEMU must have a reviewed unprivileged confinement")
         for name, path, good in (("ksm", "ksm", False), ("iommu", "iommu", True),
                                  ("nested-virtualization", "nested", False)):
@@ -366,9 +380,14 @@ def listener_inventory():
     return result
 
 
-def process_inventory(approved_domain):
+def process_inventory(approved_domain, expected_qemu_user):
     result = []
     pids = []
+    try:
+        import pwd
+        expected_uid = pwd.getpwnam(expected_qemu_user).pw_uid if expected_qemu_user else None
+    except (ImportError, KeyError):
+        expected_uid = None
     try:
         entries = list(pathlib.Path("/proc").iterdir())
     except OSError:
@@ -395,14 +414,29 @@ def process_inventory(approved_domain):
         caps_reviewed = int(cap_match.group(1), 16) == 0 if cap_match else None
         domain = ("approved" if approved_domain and
                   ("guest=" + approved_domain) in cmdline else "other")
+        uid = number("Uid")
+        monitor = re.search(r"(?:^|\s)-chardev\s+socket,[^ ]*id=charmonitor,[^ ]*path=([^, ]+)",
+                            cmdline)
+        monitor_path = monitor.group(1) if monitor else None
+        qmp_permissions = None
+        if monitor_path and monitor_path.startswith(("/run/libvirt/", "/var/lib/libvirt/qemu/")):
+            try:
+                info = os.stat(monitor_path)
+                qmp_permissions = (stat.S_ISSOCK(info.st_mode) and
+                                   info.st_mode & 0o077 == 0 and
+                                   info.st_uid in (0, expected_uid))
+            except OSError:
+                pass
         pids.append(int(entry.name))
-        result.append({"domain": domain, "uid": number("Uid"), "gid": number("Gid"),
+        result.append({"domain": domain, "uid": uid, "gid": number("Gid"),
                        "apparmor": "enforce" if "(enforce)" in label and
                        "libvirt-" in label else "other",
                        "seccomp": number("Seccomp"), "no_new_privs": number("NoNewPrivs"),
                        "caps_reviewed": caps_reviewed,
-                       "qmp_local": "-chardev socket" in cmdline and
-                       "path=/run/libvirt/" in cmdline})
+                       "qmp_local": monitor_path is not None,
+                       "qmp_permissions_verified": qmp_permissions,
+                       "service_uid_verified": uid == expected_uid if
+                       expected_uid is not None and uid is not None else None})
     return result, pids
 
 
@@ -459,8 +493,17 @@ def guest_xml_summary(approved_domain):
         return None
     summaries = []
     for root in roots:
+        if root.tag != "domain" or any(child.tag not in {
+                "name", "uuid", "memory", "currentMemory", "vcpu", "os", "features",
+                "cpu", "on_crash", "on_poweroff", "on_reboot", "clock", "pm",
+                "devices", "seclabel", "resource", "cputune", "numatune"} for child in root):
+            return None
         devices = root.find("devices")
         if devices is None:
+            return None
+        if any(child.tag not in {"emulator", "disk", "controller", "input", "graphics",
+                                  "video", "hostdev", "memballoon", "watchdog"}
+               for child in devices):
             return None
         hostdevs = devices.findall("hostdev")
         graphics = devices.findall("graphics")
@@ -486,7 +529,8 @@ def guest_xml_summary(approved_domain):
     return summaries[0] if summaries[0] == summaries[1] else None
 
 
-def collect_live(approved_if=None, approved_domain=None, adapter_path=None):
+def collect_live(approved_if=None, approved_domain=None, adapter_path=None,
+                 expected_qemu_user=None):
     if sys.platform != "linux":
         raise RuntimeError("live verification requires Linux")
     data = {"schema": 1, "ipv4_routes": routes("4"), "ipv6_routes": routes("6"),
@@ -502,7 +546,7 @@ def collect_live(approved_if=None, approved_domain=None, adapter_path=None):
     data["bridges"] = bridges if isinstance(bridges, list) else None
     data["unexpected_nics"] = link_inventory(approved_if)
     data["netns"] = namespace_inventory()
-    processes = process_inventory(approved_domain)
+    processes = process_inventory(approved_domain, expected_qemu_user)
     data["qemu"] = processes[0] if processes is not None else None
     data["usb"] = usb_inventory(adapter_path, processes[1]) if processes is not None else None
     data["listeners"] = listener_inventory()
@@ -530,12 +574,14 @@ def main(argv=None):
     parser.add_argument("--approved-if", help="observed host MT7921U interface name")
     parser.add_argument("--approved-domain", help="approved work-domain libvirt name")
     parser.add_argument("--adapter-path", help="approved USB sysfs path, e.g. 4-1")
+    parser.add_argument("--expected-qemu-user", help="distribution libvirt QEMU service account")
     args = parser.parse_args(argv)
     try:
         if args.fixture:
             data = json.loads(args.fixture.read_text(encoding="utf-8"))
         else:
-            data = collect_live(args.approved_if, args.approved_domain, args.adapter_path)
+            data = collect_live(args.approved_if, args.approved_domain, args.adapter_path,
+                                args.expected_qemu_user)
         report = evaluate(data, args.expect, synthetic=bool(args.fixture))
     except (OSError, json.JSONDecodeError, ValueError, RuntimeError) as exc:
         print("verifier invocation/runtime error: " + str(exc), file=sys.stderr)
