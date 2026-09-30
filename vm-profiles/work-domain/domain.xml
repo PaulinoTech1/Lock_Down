@@ -1,0 +1,39 @@
+<domain type='kvm'>
+  <name>work-domain</name>
+  <memory unit='MiB' dumpCore='off'>8192</memory>
+  <vcpu placement='static'>4</vcpu>
+  <os>
+    <type arch='x86_64'>hvm</type>
+    <boot dev='hd'/>
+  </os>
+  <features>
+    <acpi/>
+    <apic/>
+  </features>
+  <cpu mode='host-passthrough'/>
+  <on_crash>destroy</on_crash>
+  <devices>
+    <disk type='file' device='disk'>
+      <driver name='qemu' type='qcow2' cache='none'/>
+      <source file='/var/lib/libvirt/images/work-domain.qcow2'/>
+      <target dev='vda' bus='virtio'/>
+    </disk>
+    <controller type='usb' model='qemu-xhci'/>
+    <input type='tablet' bus='usb'/>
+    <graphics type='spice' autoport='no' port='-1'>
+      <listen type='none'/>
+      <clipboard copypaste='no'/>
+      <filetransfer enable='no'/>
+    </graphics>
+    <video>
+      <model type='virtio' heads='1'/>
+    </video>
+    <hostdev mode='subsystem' type='usb' managed='yes'>
+      <source startupPolicy='mandatory'>
+        <vendor id='0x0e8d'/>
+        <product id='0x7961'/>
+      </source>
+    </hostdev>
+  </devices>
+  <seclabel type='dynamic' model='apparmor' relabel='yes'/>
+</domain>
