@@ -127,7 +127,34 @@ running audit10 kernel. Host validation found KVM, `/dev/kvm`, vhost-net,
 TUN, Intel DMAR/IOMMU and normal guest prerequisites available. The root-run
 validator warned only that confidential-guest SEV/TDX support was unavailable;
 an unprivileged run additionally warned about the cgroup devices check.
-`virsh list --all` showed no defined guest. The owner-supplied
-`qemu-img check` found no errors in the existing audit9 qcow2 image, but the
-audit10 overlay and real guest have not been launched. Keep the audit9 image
-unmodified and use a separate overlay for the next VM test.
+The owner-supplied `qemu-img check` found no errors in the existing audit9
+qcow2 image. On 29 September, a separate audit10 qcow2 overlay was created
+through a transient libvirt storage pool, backed by that audit9 image. A
+transient 2-vCPU, 2-GiB KVM domain booted the Ubuntu 24.04.5 guest from the
+overlay and existing NoCloud seed ISO. Its serial console reported
+`Hypervisor detected: KVM`, reached `multi-user.target` and
+`cloud-init.target`, and presented the `ttyS0` login prompt. The first launch
+received a DHCP lease (`192.168.122.174/24`) and terminated after about 15
+seconds; the second launch remained running until `virsh shutdown` caused a
+clean domain exit. The second launch did not show a lease. The guest agent
+did not connect on either launch (`guest-ping` failed). Thus real guest boot
+and ACPI shutdown pass, but guest login, sustained networking, agent, and
+application-level VM usability remain unverified. Do not call the complete
+VM workflow a pass.
+
+The test used the account's existing `libvirt` access, not `sudo`; the
+transient pool has no autostart, and the transient domain no longer exists.
+The overlay remains at
+`/var/lib/libvirt/images/lockdown-audit10-vmtest-overlay.qcow2` for follow-up.
+The base audit9 image's size and modification time remained unchanged. The
+bounded creation/verification commands were:
+
+```sh
+virsh -c qemu:///system pool-create-as lockdown-audit10-test dir --target /var/lib/libvirt/images
+virsh -c qemu:///system vol-create-as lockdown-audit10-test lockdown-audit10-vmtest-overlay.qcow2 3758096384 --format qcow2 --backing-vol /var/lib/libvirt/images/lockdown-audit9-vmtest.qcow2 --backing-vol-format qcow2
+virt-install --connect qemu:///system --name lockdown-audit10-vmtest --virt-type kvm --import --transient --memory 2048 --vcpus 2 --cpu host-passthrough --osinfo generic --disk 'vol=lockdown-audit10-test/lockdown-audit10-vmtest-overlay.qcow2,bus=virtio' --disk 'path=/var/lib/libvirt/images/lockdown-audit9-vmtest-seed.iso,device=cdrom,format=raw,readonly=on' --network network=default,model=virtio --channel unix,target.type=virtio,target.name=org.qemu.guest_agent.0 --graphics none --console pty --autoconsole text
+virsh -c qemu:///system domblklist lockdown-audit10-vmtest --details
+virsh -c qemu:///system net-dhcp-leases default
+virsh -c qemu:///system qemu-agent-command lockdown-audit10-vmtest '{"execute":"guest-ping"}'
+virsh -c qemu:///system shutdown lockdown-audit10-vmtest
+```
