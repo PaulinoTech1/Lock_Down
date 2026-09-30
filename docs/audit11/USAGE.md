@@ -5,10 +5,12 @@ performs a build, signing, installation, boot, suspend, or physical test.
 
 ## Tooling context and current release status
 
-Audit11 is built, installed, and booted with basic root/Secure Boot checks,
-but physical hardware, KVM guest, suspend/resume, and fallback tests remain
-open. Audit10's earlier real KVM guest reached a serial login prompt and shut
-down cleanly, but guest login, sustained network, guest agent, and workload
+Audit11 is built, installed, and booted with basic root/Secure Boot checks.
+Two diskless KVM boots and a real Ubuntu guest boot to serial login with ACPI
+shutdown also passed. Physical hardware, guest login/network/agent/workload,
+suspend/resume, and fallback tests remain open. Audit10's earlier real KVM
+guest reached a serial login prompt and shut down cleanly, but guest login,
+sustained network, guest agent, and workload
 checks are still open. See the [audit11 owner runbook](../AUDIT11_OWNER_RUNBOOK.md)
 and [issue ledger](../../ISSUES.md).
 
