@@ -1,6 +1,6 @@
 # Two-domain enforcement phase
 
-**Status:** proposed repository design for owner review, 30 September 2026. No implementation or ThinkPad policy change is authorized by this document. The active collaboration branch is `windows-codex`; the reviewed starting checkpoint is `abe793b`.
+**Status:** design written for owner review on 30 September 2026. The subsequent owner instruction authorized repository implementation on a separate branch. Live ThinkPad policy changes still require the separate gates below. The design branch is `windows-codex`; its implementation starting checkpoint was `2a48734`.
 
 This phase makes the [two-domain architecture](TWO_DOMAIN_ARCHITECTURE.md) and [egress exclusivity design](EGRESS_EXCLUSIVITY_DESIGN.md) mechanically checkable. The work guest is assumed fully compromised. Only the approved MT7921U USB Wi-Fi device (`0e8d:7961`) may provide physical egress, under exactly one owner. The control host and its root account remain trusted. This is Qubes-inspired compartmentalization, not Qubes-equivalent isolation.
 
@@ -115,7 +115,7 @@ Verifier fixtures include valid offline/guest/maintenance observations; stale IP
 
 ## 13. Deployment gates
 
-**Gate A: owner review of this spec.** No repository implementation components are built before that review, per the attached process. After approval, write an implementation plan and pause again if its workflow requires plan approval. Keep changes in small independent commits on `windows-codex`.
+**Gate A: repository implementation instruction received.** The subsequent owner instruction describes this as implementation of the approved architecture and requests a separate `thinkpad-two-domain-enforcement` branch from `windows-codex`. Continue in small independent commits. This instruction does not approve live firewall, network-manager, USB, AppArmor, libvirt, or kernel mutation.
 
 **Gate B: disposable Linux validation.** Require XML/nft syntax, fixture matrix, hook behavior, CI and negative paths before proposing live installation. Record package versions and unresolved checks.
 
