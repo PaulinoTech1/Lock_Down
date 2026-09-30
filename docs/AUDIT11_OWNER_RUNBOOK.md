@@ -1,9 +1,11 @@
 # Audit11 owner install and supervised validation
 
 Status, 30 September 2026: audit11 is **built, MOK-signed, installed, and
-running**. Its basic boot checks passed; the owner has **not yet tested physical
-hardware, a KVM guest, suspend/resume, or fallback**. The build used the
-committed audit10 effective config plus exactly three `y`-to-`n` cuts and a
+running**. Its basic boot checks, two diskless KVM boots, and a real guest
+boot to serial login followed by ACPI shutdown passed. Physical hardware,
+guest login/network/agent/workloads, suspend/resume, and fallback remain
+untested. The build used the committed audit10 effective config plus exactly
+three `y`-to-`n` cuts and a
 unique `LOCALVERSION`. It preserves
 Intel KVM, core io_uring, ThinkPad ACPI, Snap/SquashFS, storage, networking,
 graphics, audio, and the audit10 crash-diagnostic policy. Audit10 and stock
@@ -107,7 +109,56 @@ and `/boot/vmlinuz-6.18.53-lockdown-t14g3-audit11` passed `sbverify` against
 the existing MOK certificate. This establishes a successful basic boot and
 root unlock, **not** the hardware checklist. The owner explicitly said no
 hardware tests have been done yet. Wi-Fi use, display/input/audio, USB-C,
-HDMI, USB storage, KVM guest, suspend/resume, crash diagnostics, and an actual
+HDMI, USB storage, complete VM use, suspend/resume, crash diagnostics, and an actual
 fallback/default reboot remain untested on audit11. Keep the stock and audit10
 fallbacks; do not infer a power or exploit-mitigation magnitude from three
 disabled options.
+
+## KVM and real-guest checkpoint, 30 September 2026
+
+The running audit11 release was `6.18.53-lockdown-t14g3-audit11`. Its effective
+config has `CONFIG_KVM=y`, `CONFIG_KVM_INTEL=y`, `CONFIG_TUN=y`, and
+`CONFIG_VHOST_NET=y`. `virt-host-validate qemu` passed VMX, `/dev/kvm`,
+vhost-net, TUN, and Intel DMAR/IOMMU checks. It warned about the cgroup
+`devices` controller and unavailable confidential-guest SEV/TDX support;
+neither warning prevented this ordinary KVM guest from starting. The fixed,
+unprivileged `bash scripts/kvm-smoke.sh` test passed both boots and clean
+power-offs. It recorded the host kernel SHA-256
+`c78f8b73538b9e0c5f488f82e93b4794e2a06934c667e624f326f5d27de7f3c6`
+and deterministic initramfs SHA-256
+`bc75010a0af460d9a6b831d78fe6f9da7bf037dd641db813b0743926fe14f7b5`.
+
+No libvirt domain was active before the test. A new transient libvirt pool and
+`lockdown-audit11-vmtest-overlay.qcow2` were created; the audit9 base image was
+not mounted for writing. The first transient 2-vCPU, 2-GiB guest launch obtained
+a DHCP lease at `192.168.122.215/24` and exited after about 16 seconds. A
+second launch from the overlay was attached to the serial console: the Ubuntu
+24.04.5 guest reported `Hypervisor detected: KVM`, reached `multi-user.target`
+and `cloud-init.target`, and presented its `ttyS0` login prompt. It remained
+running until `virsh shutdown` requested an ACPI shutdown. Libvirt then
+showed no active domains or failed host units. The audit9 base image retained
+its pre-test size (625612288 bytes) and modification time (1790669371);
+the audit11 overlay remains for follow-up. No sudo authentication was used.
+
+The second launch showed its guest NIC down in cloud-init's console output;
+there was no DHCP lease for its MAC. `guest-ping` did not connect to a guest
+agent. Guest login, sustained networking, agent, and application workloads
+therefore remain **open**; reaching a login prompt is not a complete VM pass.
+The base image could not be directly rechecked with `qemu-img check` from this
+unprivileged shell (`Permission denied`); its earlier audit10 integrity check
+and unchanged size/mtime are recorded separately, not substituted for a fresh
+integrity check.
+
+```bash
+bash scripts/kvm-smoke.sh
+virt-host-validate qemu
+virsh -c qemu:///system pool-create-as lockdown-audit11-test dir --target /var/lib/libvirt/images
+virsh -c qemu:///system vol-create-as lockdown-audit11-test lockdown-audit11-vmtest-overlay.qcow2 3758096384 --format qcow2 --backing-vol /var/lib/libvirt/images/lockdown-audit9-vmtest.qcow2 --backing-vol-format qcow2
+virt-install --connect qemu:///system --name lockdown-audit11-vmtest --virt-type kvm --import --transient --memory 2048 --vcpus 2 --cpu host-passthrough --osinfo generic --disk 'vol=lockdown-audit11-test/lockdown-audit11-vmtest-overlay.qcow2,bus=virtio' --disk 'path=/var/lib/libvirt/images/lockdown-audit9-vmtest-seed.iso,device=cdrom,format=raw,readonly=on' --network network=default,model=virtio --channel unix,target.type=virtio,target.name=org.qemu.guest_agent.0 --graphics none --console pty --autoconsole text
+virsh -c qemu:///system shutdown lockdown-audit11-vmtest
+```
+
+The pool and overlay now exist; the creation commands above document the
+completed test and must not be rerun blindly. Follow-up should inspect the
+seed/network configuration and use the retained overlay or a separately named
+fresh overlay after confirming the intended test scope.

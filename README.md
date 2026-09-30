@@ -11,8 +11,9 @@ that was actually verified on this unit (see `docs/HARDWARE.md` and
 stays out of the build until it is checked on the machine.
 
 The current static candidate, audit11, is installed and running. Its basic boot
-checks passed; physical hardware, KVM guest, suspend/resume, and fallback tests
-have not yet been performed. The exact package, installation record, and
+checks passed; two diskless KVM boots and a real Ubuntu guest boot to serial
+login with ACPI shutdown also passed. Physical hardware, guest login/network
+and workload checks, suspend/resume, and fallback remain open. The package and
 remaining validation checklist are in
 [`docs/AUDIT11_OWNER_RUNBOOK.md`](docs/AUDIT11_OWNER_RUNBOOK.md). Audit11
 decision analysis and read-only evidence tooling are in

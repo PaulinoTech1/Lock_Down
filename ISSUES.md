@@ -13,7 +13,7 @@ A successful basic boot does not close physical, VM, suspend, or recovery tests.
 | High | s2idle and recovery | Suspend/resume, post-resume peripherals, previous custom fallback, and stock rescue boot remain untested on audit10. Keep the owner-supervised recovery path. |
 | Medium | USB-C/Thunderbolt policy | Historical audit3 NHI and `boltctl` observations do not prove firmware tunneling policy or direct USB-C DisplayPort function. Read ThinkLMI policy with owner privileges and perform physical port tests. |
 | Medium | Power benefit | No matched stock-versus-candidate power comparison exists. Measure only after function and recovery validation. |
-| High | Audit11 functional validation | The three-symbol proposal resolved with zero collateral config changes. Audit11 was built, MOK-signed, installed, and booted; live checks confirm the mapper-backed ext4 root, Secure Boot with integrity lockdown, and zero failed system units. The owner has not yet tested physical hardware, a KVM guest, suspend/resume, crash diagnostics, or fallback/default boot. Follow `docs/AUDIT11_OWNER_RUNBOOK.md`. |
+| High | Audit11 functional validation | The three-symbol proposal resolved with zero collateral config changes. Audit11 was built, MOK-signed, installed, and booted; live checks confirm the mapper-backed ext4 root, Secure Boot with integrity lockdown, and zero failed system units. Diskless KVM smoke passed twice; a real Ubuntu guest reached serial login and shut down cleanly. Physical hardware, guest login/network/agent/workloads, suspend/resume, crash diagnostics, and fallback/default boot remain open. Follow `docs/AUDIT11_OWNER_RUNBOOK.md`. |
 
 ## Resolved tooling and historical findings
 
