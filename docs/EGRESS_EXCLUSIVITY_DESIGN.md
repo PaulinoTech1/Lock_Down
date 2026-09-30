@@ -6,10 +6,10 @@
 
 ## 1. Goal and threat boundary
 
-Make this property an enforceable invariant:
+Make this property an enforceable global safety invariant:
 
 ```text
-HOST_EGRESS XOR GUEST_EGRESS
+NOT (HOST_EGRESS AND GUEST_EGRESS)
 ```
 
 The only approved physical egress device is the external MediaTek MT7921U USB Wi-Fi adapter, VID:PID `0e8d:7961`. The built-in Intel Wi-Fi is outside the architecture. Ethernet, docking Ethernet, WWAN, other USB network devices, external bridges, and other physical paths are not approved. The work guest is assumed fully compromised. The host, its root account, kernel, KVM/QEMU implementation, and firmware are trusted; the design handles operator mistakes, automatic reconnect, guest/QEMU failures, restarts, reboot, re-enumeration, and interrupted handoff. It does not protect against malicious host root, a compromised kernel/hypervisor/firmware, physical attack, or a VM escape.
@@ -36,7 +36,7 @@ The `winddows-codex` working tree was clean at the checkpoint. `git fetch origin
 
 Let `H` mean the host is able to send Internet traffic through the approved MT7921U, `G` mean the work guest owns that adapter and can send Internet traffic through it, and `A` mean the adapter's egress ownership is proven from current device/driver/libvirt state.
 
-1. `H && G` is forbidden in every state.
+1. `!(H && G)` holds in every state. `!H && !G` is the required safe-offline case, so exclusive OR is not the global invariant.
 2. `SAFE_OFFLINE`, `TRANSITION`, and `ERROR` require `!H && !G`; there is no permitted default route for the host or Internet route for the guest.
 3. `GUEST_EGRESS` requires `G && !H`: exactly one approved work guest, direct USB assignment of the one approved adapter, no host Wi-Fi association or external route, and a host egress/forwarding deny policy.
 4. `HOST_MAINTENANCE` requires `H && !G`: all QEMU guests stopped, the adapter host-bound, and the maintenance egress lease explicitly active.
