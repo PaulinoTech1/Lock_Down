@@ -4,6 +4,13 @@ Status: planning handoff, 30 September 2026. This document authorizes no
 kernel build, signing, installation, boot change, or hardware-policy change.
 It is not an audit12 candidate or a claim that audit11 passed full validation.
 
+Owner decision, 30 September 2026: the USB/IP-related workflows are required.
+The guest workspace is the intended daily driver in a Qubes OS-inspired
+separation design. Preserve `CONFIG_USBIP_CORE`, `CONFIG_USBIP_VHCI_HCD`, and
+`CONFIG_USBIP_HOST` at their current effective values. The original
+conditional removal question is closed. The [stage-0 review](STAGE0_REVIEW.md)
+records the decision and the remaining watchdog/FUSE evidence gaps.
+
 ## Objective and owner boundary
 
 Prepare an evidence-backed, small next hardening proposal for the ThinkPad T14
@@ -41,6 +48,9 @@ Do not describe this as a full VM or laptop validation pass.
   until consumers are checked, Intel KVM/IOMMU/VFIO capability, and current
   crash-diagnostic support. Do not silently disable BPF, user namespaces,
   core io_uring, or a syscall facility used by the desktop/VM workflow.
+- Keep USB/IP import/export and the daily-driver guest integration paths. The
+  owner confirmed these workflows are required; do not infer that every guest
+  uses every integration or weaken the separate hostile-analysis VM profile.
 - Preserve stock Ubuntu and audit10 recovery choices. No GRUB, swap, firmware,
   BIOS, or host sysctl changes are part of this Windows stage.
 - A smaller binary is not a measured power or security benefit. For each
@@ -49,14 +59,13 @@ Do not describe this as a full VM or laptop validation pass.
 
 ## Narrow investigation tracks
 
-1. **USB/IP, one conditional set.** Current effective audit11 values are
+1. **USB/IP, preserve the required set.** Current effective audit11 values are
    `CONFIG_USBIP_CORE=y`, `CONFIG_USBIP_VHCI_HCD=y`, and `CONFIG_USBIP_HOST=y`.
    Re-read [audit11 reconnaissance](../audit11/RECONNAISSANCE.md), including
-   observed virtual hubs and its explicit deferral. Determine whether remote
-   USB import/export, tokens, recovery, or guest/development access is needed.
-   No absence-of-use claim is valid from an idle Windows inventory. Removal of
-   all three is only a candidate if the owner rules those workflows out and a
-   Linux resolved-config review finds no unapproved collateral change.
+   observed virtual hubs and its explicit deferral. The owner confirmed remote
+   USB and guest/development workflows are required. Record the actual Linux
+   routing and per-guest device policy; do not propose removal of these three
+   symbols. No absence-of-use claim is valid from an idle Windows inventory.
 2. **Non-platform watchdog drivers, separate review.** The config contains
    numerous built-in watchdog leaves. Classify exact device IDs and
    dependencies against the Lenovo inventory, but retain watchdog core and
@@ -66,7 +75,7 @@ Do not describe this as a full VM or laptop validation pass.
    config has `FUSE_FS`, `FUSE_DAX`, `FUSE_PASSTHROUGH`, and `FUSE_IO_URING`
    enabled. Distinguish optional subfeatures from core FUSE/AutoFS and check
    Snap, desktop mounts, containers, and VM host workflows. Do not combine
-   this with USB/IP in the first proposal.
+   this with any other track in a first proposal.
 
 The first memo should recommend at most one independently testable cut set,
 or recommend **no cut** if workflow evidence is insufficient. For every symbol
