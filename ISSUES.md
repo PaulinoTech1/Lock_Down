@@ -1,7 +1,7 @@
 # Lock_Down status and issue ledger
 
-Status checked against the audit10 owner runbook and built audit11 candidate on
-30 September 2026. A static check cannot close a boot or hardware issue.
+Status checked against the running audit11 candidate on 30 September 2026.
+A successful basic boot does not close physical, VM, suspend, or recovery tests.
 
 ## Current open issues and validation blockers
 
@@ -13,7 +13,7 @@ Status checked against the audit10 owner runbook and built audit11 candidate on
 | High | s2idle and recovery | Suspend/resume, post-resume peripherals, previous custom fallback, and stock rescue boot remain untested on audit10. Keep the owner-supervised recovery path. |
 | Medium | USB-C/Thunderbolt policy | Historical audit3 NHI and `boltctl` observations do not prove firmware tunneling policy or direct USB-C DisplayPort function. Read ThinkLMI policy with owner privileges and perform physical port tests. |
 | Medium | Power benefit | No matched stock-versus-candidate power comparison exists. Measure only after function and recovery validation. |
-| High | Audit11 installation and runtime | The three-symbol proposal was resolved against authenticated Linux 6.18.53 source with zero collateral config changes. A unique audit11 package was built, MOK-signed, and statically checked, but sudo authentication was unavailable to the agent, so installation, generated initramfs, GRUB state, boot, physical hardware, KVM guest, suspend, and fallback remain unverified. Follow `docs/AUDIT11_OWNER_RUNBOOK.md`. |
+| High | Audit11 functional validation | The three-symbol proposal resolved with zero collateral config changes. Audit11 was built, MOK-signed, installed, and booted; live checks confirm the mapper-backed ext4 root, Secure Boot with integrity lockdown, and zero failed system units. The owner has not yet tested physical hardware, a KVM guest, suspend/resume, crash diagnostics, or fallback/default boot. Follow `docs/AUDIT11_OWNER_RUNBOOK.md`. |
 
 ## Resolved tooling and historical findings
 

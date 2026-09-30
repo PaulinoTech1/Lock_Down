@@ -10,9 +10,10 @@ that was actually verified on this unit (see `docs/HARDWARE.md` and
 `docs/RUNTIME_VERIFICATION.md`). Anything not verified is labeled UNVERIFIED and
 stays out of the build until it is checked on the machine.
 
-The current static candidate is audit11. It is built and MOK-signed, but not
-yet installed or booted; audit10 remains the running kernel. The exact package,
-owner-only install commands, and preboot hold point are in
+The current static candidate, audit11, is installed and running. Its basic boot
+checks passed; physical hardware, KVM guest, suspend/resume, and fallback tests
+have not yet been performed. The exact package, installation record, and
+remaining validation checklist are in
 [`docs/AUDIT11_OWNER_RUNBOOK.md`](docs/AUDIT11_OWNER_RUNBOOK.md). Audit11
 decision analysis and read-only evidence tooling are in
 [`docs/audit11/USAGE.md`](docs/audit11/USAGE.md). See [`ISSUES.md`](ISSUES.md)

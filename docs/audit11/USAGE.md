@@ -3,20 +3,21 @@
 These tools produce review material. Neither creates an audit11 candidate or
 performs a build, signing, installation, boot, suspend, or physical test.
 
-## Before the next build
+## Tooling context and current release status
 
-Audit10 is the last built and booted candidate. Its real KVM guest reached a
-serial login prompt and shut down cleanly, but guest login, sustained network,
-guest agent, and workload checks are still open. The other audit10 physical,
-suspend, and fallback checks remain separate from this tooling; see the
-[owner runbook](../AUDIT10_OWNER_RUNBOOK.md) and [issue ledger](../../ISSUES.md).
+Audit11 is built, installed, and booted with basic root/Secure Boot checks,
+but physical hardware, KVM guest, suspend/resume, and fallback tests remain
+open. Audit10's earlier real KVM guest reached a serial login prompt and shut
+down cleanly, but guest login, sustained network, guest agent, and workload
+checks are still open. See the [audit11 owner runbook](../AUDIT11_OWNER_RUNBOOK.md)
+and [issue ledger](../../ISSUES.md).
 
-For audit11, start with a small, reviewed proposal against the audit10
-effective config. Run the analyzer with independently authenticated upstream
-source, inspect every accepted/rejected request and collateral delta, and
-review the required policy gates. An exit-zero analysis is not approval to
-build or promote a candidate. The collector becomes relevant only after an
-exact candidate is separately built, signed, installed, and booted.
+The audit11 release began with a small, reviewed proposal against the audit10
+effective config. The analyzer ran against authenticated upstream source and
+reported every accepted/rejected request, collateral delta, and policy gate.
+An exit-zero analysis alone did not approve a build. The collector can now
+record read-only host observations, but it cannot perform physical tests,
+start a VM, or suspend the laptop.
 
 The [stage-1 three-symbol review](STAGE1.md) records the first completed
 proposal, its resolved diff, gate results, and reproducible command. It did
