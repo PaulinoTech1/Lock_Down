@@ -10,17 +10,23 @@ that was actually verified on this unit (see `docs/HARDWARE.md` and
 `docs/RUNTIME_VERIFICATION.md`). Anything not verified is labeled UNVERIFIED and
 stays out of the build until it is checked on the machine.
 
-Audit11 is installed and running; it passed basic boot checks, two diskless
-KVM boots, and a real Ubuntu guest boot to serial login followed by ACPI
-shutdown. Physical hardware, guest login/network/agent/workload,
-suspend/resume, and fallback checks remain open. Audit12 is the current
-build candidate; it disables kernel sample code while retaining KVM, real
-watchdog support, and crash diagnostics. Audit12 is built, but remains
-unsigned, uninstalled, unbooted, and untested. See the
-[audit11 runbook](docs/AUDIT11_OWNER_RUNBOOK.md) for prior runtime evidence and
-the [audit12 stage-1 record](docs/audit12/STAGE1.md) for
-the candidate config and build boundary. Audit11 decision analysis and
-read-only evidence tooling are in
+Audit12 is installed and running. It disables kernel sample code while
+retaining KVM, real watchdog support, and crash diagnostics. Basic boot checks
+passed with encrypted root, Secure Boot integrity lockdown, and no failed
+units. Two diskless KVM smoke runs passed. The owner reports speakers, USB
+storage, USB Wi-Fi, microphone, HDMI, USB-C, touchpad, and TrackPoint/nub
+working. A disposable real Ubuntu guest passed login, gateway and DNS checks,
+a bounded file write/hash workload, guest-agent communication, and graceful
+shutdown. One short s2idle cycle resumed successfully; USB Wi-Fi reconnected,
+passed three gateway pings, and resolved DNS. Post-resume display/input/audio,
+keyboard/brightness, USB reconnect persistence, crash-dump behavior,
+stock recovery boot, and power measurements remain open. Audit11 remains
+installed as a custom fallback. See the
+[audit11 runbook](docs/AUDIT11_OWNER_RUNBOOK.md) for prior runtime evidence,
+the [audit12 stage-1 record](docs/audit12/STAGE1.md) for the candidate config
+and build boundary, the [audit12 signing/install runbook](docs/AUDIT12_OWNER_RUNBOOK.md),
+and the [audit13 Windows-agent handoff](docs/audit13/WINDOWS_HANDOFF.md).
+Audit11 decision analysis and read-only evidence tooling are in
 [`docs/audit11/USAGE.md`](docs/audit11/USAGE.md). See [`ISSUES.md`](ISSUES.md)
 for validation blockers and historical records.
 

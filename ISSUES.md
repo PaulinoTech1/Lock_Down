@@ -1,6 +1,6 @@
 # Lock_Down status and issue ledger
 
-Status checked against the running audit11 candidate and built audit12 candidate on 30 September 2026.
+Status checked against running audit12 on 30 September 2026.
 A successful basic boot does not close physical, VM, suspend, or recovery tests.
 
 ## Current open issues and validation blockers
@@ -14,7 +14,7 @@ A successful basic boot does not close physical, VM, suspend, or recovery tests.
 | Medium | USB-C/Thunderbolt policy | Historical audit3 NHI and `boltctl` observations do not prove firmware tunneling policy or direct USB-C DisplayPort function. Read ThinkLMI policy with owner privileges and perform physical port tests. |
 | Medium | Power benefit | No matched stock-versus-candidate power comparison exists. Measure only after function and recovery validation. |
 | High | Audit11 functional validation | The three-symbol proposal resolved with zero collateral config changes. Audit11 was built, MOK-signed, installed, and booted; live checks confirm the mapper-backed ext4 root, Secure Boot with integrity lockdown, and zero failed system units. Diskless KVM smoke passed twice; a real Ubuntu guest reached serial login and shut down cleanly. Physical hardware, guest login/network/agent/workloads, suspend/resume, crash diagnostics, and fallback/default boot remain open. Follow `docs/AUDIT11_OWNER_RUNBOOK.md`. |
-| High | Audit12 staged validation | Audit12 removes only kernel sample code (`CONFIG_SAMPLES=n`) from audit11's resolved profile. All seven static gates passed, and the authenticated-source build completed with package/config/image identity verified. The image `.deb` is built but unsigned, uninstalled, unbooted, and functionally untested. Preserve audit11 and stock recovery entries; follow `docs/audit12/STAGE1.md` before any signing or install. |
+| High | Audit12 remaining validation | Audit12 is built, MOK-signed, installed, and booted to the encrypted root with Secure Boot integrity lockdown and zero failed system units. Diskless KVM smoke passed 2/2. The owner reports the selected physical hardware working, and a disposable real guest passed login, gateway/DNS, bounded write/hash, guest-agent, and graceful-shutdown checks. A short s2idle cycle resumed; USB Wi-Fi passed three gateway pings and DNS afterward. Keyboard/brightness, USB persistence after reconnect, post-resume display/input/audio, crash-dump behavior, and stock fallback testing remain open. Kernel logs show legacy-driver probe noise and watchdog registration conflicts; review before the next pruning stage. Follow `docs/AUDIT12_OWNER_RUNBOOK.md`. |
 
 ## Resolved tooling and historical findings
 
