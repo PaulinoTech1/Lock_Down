@@ -1,5 +1,9 @@
 # Lock_Down
 
+## TL;DR
+
+A hardware-tailored, security-hardened Linux workstation build: custom kernel configs, userspace hardening, and procedures verified against the actual hardware. Goal: a locked-down daily driver, with the learning arc (mistakes included) documented.
+
 A hardware-tailored, security-first Linux workstation build for **one specific laptop**:
 a Lenovo ThinkPad T14 Gen 3 Intel (machine type 21AJ, model 21AJS1GL06).
 
